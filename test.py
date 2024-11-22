@@ -19,6 +19,7 @@ RED = (255, 0, 0)
 BLUE = (0, 0, 255)
 GOLD = (255, 215, 0)
 CYAN = (0, 200, 255)  # 하늘색 오브젝트 색상
+MINT = (0, 255, 200)  # 민트색 빙판길 색상
 
 # 블록 크기
 BLOCK_SIZE = 40
@@ -97,11 +98,29 @@ gold_obstacles = []
 cyan_objects = []
 cyan_last_collected = {}  # 하늘색 오브젝트의 마지막 경유 시간
 
-
 # 현재 단계와 플레이어 위치 초기화
 current_level = 0
 player_x, player_y = 1, 1
 
+# 빙판길 관련 변수 초기화
+ice_paths = []
+ice_cross_count = 0
+
+# 최근 밟은 빙판길 위치를 추적하기 위한 변수
+last_ice_position = None
+
+# 빨간 오브젝트(용암) 관련 변수
+lava_objects = []
+lava_last_spawn_time = 0
+lava_spawn_interval = 3  # 용암 생성 간격 (초)
+lava_duration = 2  # 용암 지속 시간 (초)
+
+# 연기 관련 변수
+smoke_position_x = 0  # 연기의 초기 x 위치
+smoke_speed = 3       # 연기의 이동 속도
+smoke_width = 100     # 연기의 폭
+smoke_height = HEIGHT  # 연기의 높이 (화면 전체 높이)
+smoke_color = (100, 100, 100, 128)  # 연기의 색상 (회색, 반투명)
 
 # 바람 방향 업데이트 함수
 def change_wind_direction():
@@ -111,6 +130,7 @@ def change_wind_direction():
         last_wind_change_time = time.time()
 
 
+# 바람 방향 표시
 def draw_wind_arrow():
     # 현재 단계가 3단계 (인덱스 2)일 때만 표시
     if current_level == 2:
@@ -167,6 +187,90 @@ def place_cyan_objects(maze):
             cyan_objects.append((x, y))
             cyan_last_collected[(x, y)] = 0  # 초기화 시간 설정
 
+# 빙판길 배치 함수 (4단계 전용)
+def place_ice_paths(maze):
+    global ice_paths
+    ice_paths = []
+    while len(ice_paths) < 7:
+        x, y = random.randint(0, len(maze[0]) - 1), random.randint(0, len(maze) - 1)
+        # 플레이어가 이동 가능한 경로(0)인 경우에만 빙판길 배치
+        if maze[y][x] == 0 and (x, y) not in ice_paths:
+            ice_paths.append((x, y))
+
+# 빙판길 패널티 체크 함수
+def check_ice_penalty():
+    global ice_cross_count, player_x, player_y, message, message_start_time, path, draw_path, moving, last_ice_position
+    # 5단계에서는 패널티를 적용하지 않음
+    if current_level == 4:  # 5단계 인덱스는 4
+        return
+
+    if (player_x, player_y) in ice_paths:
+        # 최근 밟은 빙판길 위치와 현재 위치가 다를 때만 카운트 증가
+        if last_ice_position != (player_x, player_y):
+            ice_cross_count += 1
+            last_ice_position = (player_x, player_y)  # 현재 위치를 기록
+            if ice_cross_count >= 3:
+                # 4단계 시작 위치로 즉시 리스폰
+                player_x, player_y = 1, 1  # 4단계 시작 위치
+                ice_cross_count = 0  # 빙판길 경유 횟수 초기화
+                last_ice_position = None  # 최근 밟은 위치 초기화
+                path = []  # 경로 초기화
+                draw_path = []  # 경로 그리기 초기화
+                moving = False  # 이동 중지
+                message = "빙판길을 3번 밟았습니다! 시작 지점으로 즉시 리스폰됩니다."
+                message_start_time = time.time()
+                return  # 즉시 함수 종료하여 이동 중단
+        # 빙판길 위에서는 자동 이동
+        else:
+            # 다음 칸으로 자동 이동
+            if path:
+                next_x, next_y = path[0]
+                # 빙판길 위에서 경로 따라 이동
+                if maze[next_y][next_x] == 0:
+                    player_x, player_y = next_x, next_y
+                    path.pop(0)
+            else:
+                moving = False
+    else:
+        # 빙판길이 아닌 위치로 이동했을 때 최근 위치 초기화
+        last_ice_position = None
+
+
+# 빨간 오브젝트(용암) 생성 함수
+def spawn_lava(maze):
+    global lava_objects
+    lava_objects = []
+    num_lava = random.randint(3, 6)  # 랜덤한 개수의 용암 생성
+    while len(lava_objects) < num_lava:
+        x, y = random.randint(0, len(maze[0]) - 1), random.randint(0, len(maze) - 1)
+        if maze[y][x] == 0 and (x, y) not in lava_objects:  # 이동 가능한 경로에만 생성
+            lava_objects.append((x, y))
+
+
+def draw_smoke():
+    global smoke_position_x
+    # 연기 이동
+    smoke_position_x += smoke_speed
+    if smoke_position_x > WIDTH:  # 화면을 넘어가면 다시 왼쪽으로
+        smoke_position_x = -smoke_width
+
+    # 연기 그리기 (구름 모양, 불투명)
+    smoke_surface = pygame.Surface((smoke_width, 400), pygame.SRCALPHA)  # 높이를 400으로 설정
+    smoke_surface.fill((0, 0, 0, 0))  # 완전 투명으로 초기화
+
+    # 원형 패턴을 반복해서 그려 구름처럼 보이게 설정
+    for i in range(7):  # 더 많은 원을 사용하여 크기를 확장
+        pygame.draw.circle(
+            smoke_surface,
+            (100, 100, 100, 255),  # 연기 색상 (회색, 완전 불투명)
+            (50, 20 + i * 60),  # 원의 중심 (x는 고정, y는 위아래로 퍼지게 설정)
+            50  # 원의 반지름을 키움
+        )
+
+    # 연기를 화면 상단 300 픽셀 아래에 표시
+    SCREEN.blit(smoke_surface, (smoke_position_x, 200))
+
+
 
 
 # 시간 관련 변수
@@ -208,6 +312,32 @@ def draw_timer():
 while True:
     maze = MAZES[current_level]
 
+    # 5단계에서 용암 생성 및 관리
+    if current_level == 4:  # 5단계 인덱스는 4
+        # 용암 생성 간격에 따라 새로 생성
+        if time.time() - lava_last_spawn_time > lava_spawn_interval:
+            spawn_lava(maze)
+            lava_last_spawn_time = time.time()
+
+        # 용암이 생성된 지 lava_duration 초가 지나면 제거
+        if time.time() - lava_last_spawn_time > lava_duration:
+            lava_objects = []  # 용암 제거
+
+        # 플레이어가 용암에 닿았는지 확인
+        if (player_x, player_y) in lava_objects:
+            game_over = True
+            message = "용암에 닿았습니다! 게임 오버!"
+
+
+
+    # 4단계에 진입하면 한 번만 빙판길 배치
+    if current_level == 3 and not ice_paths:  # 4단계에서만 적용
+        place_ice_paths(maze)
+
+    # 플레이어 이동 중 빙판길 체크
+    if current_level == 3:  # 4단계에서만 빙판길 체크
+        check_ice_penalty()
+
     change_wind_direction()
 
     # 3단계에 진입하면 한 번만 하늘색 오브젝트 배치
@@ -247,6 +377,18 @@ while True:
             path = [(pos[0] // BLOCK_SIZE, (pos[1] - 200) // BLOCK_SIZE) for pos in draw_path]
             draw_path = []
             moving = True
+
+    # 이동 처리 중 빙판길 자동 이동 추가
+    if moving and path:
+        next_x, next_y = path.pop(0)  # 경로에서 다음 위치 가져오기
+
+        # 이동 가능한 경우 업데이트
+        if maze[next_y][next_x] == 0:
+            player_x, player_y = next_x, next_y
+
+            # 빙판길 위에 있는 경우 추가 이동 처리
+            if (player_x, player_y) in ice_paths:
+                check_ice_penalty()  # 빙판길 위에서 다시 확인
 
     # 마우스 클릭하고 드래그하는 동안 경로 기록
     if not game_over and pygame.mouse.get_pressed()[0] and not moving:
@@ -288,6 +430,17 @@ while True:
             message = "바람과 반대 방향으로 이동할 수 없습니다!"
             message_start_time = time.time()
             continue  # 이동 중단
+
+        # 4단계에 빙판길 배치
+        if current_level == 3 and not ice_paths:
+            place_ice_paths(maze)
+
+        # 플레이어 이동 중 빙판길 체크
+        if current_level == 3:
+            check_ice_penalty()
+
+
+
 
         # 벽에 닿으면 이동 중지
         elif maze[next_y][next_x] == 1:
@@ -352,6 +505,10 @@ while True:
     # 화면 그리기
     SCREEN.fill(BLACK)
 
+    # 게임 루프 내 연기 이동 및 표시
+    if current_level == 4:  # 5단계에서만 연기 표시
+        draw_smoke()
+
     # 생명 표시
     lives_text = FONT.render(f"생명: {lives}", True, WHITE)
     SCREEN.blit(lives_text, (10, 30))
@@ -377,6 +534,26 @@ while True:
             elif maze[row][col] == 3:
                 color = RED
             pygame.draw.rect(SCREEN, color, (col * BLOCK_SIZE, row * BLOCK_SIZE + 200, BLOCK_SIZE, BLOCK_SIZE))
+
+
+
+    # 용암(빨간 오브젝트) 그리기
+    if current_level == 4:  # 5단계 인덱스는 4
+        for (lx, ly) in lava_objects:
+            pygame.draw.rect(SCREEN, RED, (lx * BLOCK_SIZE, ly * BLOCK_SIZE + 200, BLOCK_SIZE, BLOCK_SIZE))
+
+
+    # 게임 루프 내 연기 이동 및 표시
+    if current_level == 4:  # 5단계에서만 연기 표시
+        draw_smoke()
+
+
+
+
+    # 빙판길 그리기 (4단계 전용)
+    if current_level == 3:
+        for (ix, iy) in ice_paths:
+            pygame.draw.rect(SCREEN, MINT, (ix * BLOCK_SIZE, iy * BLOCK_SIZE + 200, BLOCK_SIZE, BLOCK_SIZE))
 
     # 하늘색 오브젝트 그리기
     if current_level == 2:
