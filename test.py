@@ -1,3 +1,5 @@
+from collections import deque
+
 import pygame
 import sys
 import random
@@ -32,64 +34,51 @@ DIRECTIONS = ["UP", "DOWN", "LEFT", "RIGHT"]
 wind_direction = random.choice(DIRECTIONS)
 last_wind_change_time = time.time()
 
-# 단계별 미로 맵 (0: 길, 1: 벽, 2: 출발점, 3: 도착점)
-MAZES = [
-    # 1단계
-    [
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 2, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-        [1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-        [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
-        [1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1],
-        [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1],
-        [1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
-        [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 3, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-    ],
-    # 2단계
-    [
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 2, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 3, 1],
-        [1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1],
-        [1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1],
-        [1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1],
-        [1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1],
-        [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    ],
-    # 3단계
-    [
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 2, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 3, 1],
-        [1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1],
-        [1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1],
-        [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    ],
-    # 4단계
-    [
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 2, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 3, 1],
-        [1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-        [1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    ],
-    # 5단계
-    [
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 2, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 3, 1],
-        [1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-        [1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    ]
-]
+# 랜덤 미로 생성 함수
+def generate_maze(width, height):
+    maze = [[1] * width for _ in range(height)]  # 벽으로 채운 초기 미로 생성
+    start_x, start_y = 1, 1
+    maze[start_y][start_x] = 2  # 시작점 (2는 시작점으로 표시)
+
+    def dfs(x, y):
+        directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+        random.shuffle(directions)  # 이동 방향을 무작위로 섞기
+
+        for dx, dy in directions:
+            nx, ny = x + dx * 2, y + dy * 2  # 2칸씩 이동
+            if 0 < nx < width - 1 and 0 < ny < height - 1 and maze[ny][nx] == 1:
+                maze[ny][nx] = 0
+                maze[y + dy][x + dx] = 0
+                dfs(nx, ny)
+
+    # DFS로 미로 생성
+    dfs(start_x, start_y)
+
+    # 목적지 설정: 미로의 가장 먼 점 찾기
+    def farthest_point(start_x, start_y):
+        from collections import deque
+        visited = [[False] * width for _ in range(height)]
+        queue = deque([(start_x, start_y, 0)])
+        visited[start_y][start_x] = True
+        farthest = (start_x, start_y, 0)
+
+        while queue:
+            x, y, dist = queue.popleft()
+            if dist > farthest[2]:
+                farthest = (x, y, dist)
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                nx, ny = x + dx, y + dy
+                if 0 < nx < width and 0 < ny < height and not visited[ny][nx] and maze[ny][nx] == 0:
+                    visited[ny][nx] = True
+                    queue.append((nx, ny, dist + 1))
+        return farthest
+
+    end_x, end_y, _ = farthest_point(start_x, start_y)
+    maze[end_y][end_x] = 3  # 목적지 (3으로 표시)
+
+    return maze
+
+
 
 # 2단계의 황금색 장애물 좌표 초기화
 gold_obstacles = []
@@ -187,8 +176,9 @@ def place_cyan_objects(maze):
             cyan_objects.append((x, y))
             cyan_last_collected[(x, y)] = 0  # 초기화 시간 설정
 
+
 # 빙판길 배치 함수 (4단계 전용)
-def place_ice_paths(maze):
+def place_ice_paths(maze, start, end):
     global ice_paths
     ice_paths = []
     while len(ice_paths) < 7:
@@ -196,6 +186,7 @@ def place_ice_paths(maze):
         # 플레이어가 이동 가능한 경로(0)인 경우에만 빙판길 배치
         if maze[y][x] == 0 and (x, y) not in ice_paths:
             ice_paths.append((x, y))
+
 
 # 빙판길 패널티 체크 함수
 def check_ice_penalty():
@@ -271,22 +262,30 @@ def draw_smoke():
     SCREEN.blit(smoke_surface, (smoke_position_x, 200))
 
 
-
-
 # 시간 관련 변수
 time_limit = 60
 start_time = time.time()
 
-# 단계 초기화 함수 추가
+# 게임 초기화 단계에서 미로 생성
+maze = generate_maze(15, 9)
+
+# 단계 초기화 함수 수정
 def reset_level():
-    global player_x, player_y, start_time
+    global player_x, player_y, start_time, maze  # 전역 변수 maze 사용
     player_x, player_y = 1, 1
     start_time = time.time()
+    # 새로운 단계에 진입할 때만 미로를 생성
+    maze = generate_maze(15, 9)  # 새로운 미로 생성
+
+# 게임 초기화 단계에서 미로 생성
+maze = generate_maze(15, 9)
+
+
 
 # 메시지 표시 함수
 def draw_message(text, y_offset):
     # 메시지 크기 조절
-    if text == "바람과 반대 방향으로 이동할 수 없습니다!" or"황금 장애물에 닿았습니다! 1단계부터 다시 시작합니다.":
+    if text == "바람과 반대 방향으로 이동할 수 없습니다!" or "황금 장애물에 닿았습니다! 1단계부터 다시 시작합니다.":
         font = pygame.font.SysFont("Malgun Gothic", 25)  # 글씨 크기 25
     else:
         font = pygame.font.SysFont("Malgun Gothic", 36)  # 기본 글씨 크기
@@ -294,7 +293,6 @@ def draw_message(text, y_offset):
     text_surface = font.render(text, True, WHITE)
     text_rect = text_surface.get_rect(center=(WIDTH // 2, y_offset))
     SCREEN.blit(text_surface, text_rect)
-
 
 
 # 남은 시간 표시 함수
@@ -307,10 +305,8 @@ def draw_timer():
     return remaining_time
 
 
-
 # 게임 루프
 while True:
-    maze = MAZES[current_level]
 
     # 5단계에서 용암 생성 및 관리
     if current_level == 4:  # 5단계 인덱스는 4
@@ -328,11 +324,12 @@ while True:
             game_over = True
             message = "용암에 닿았습니다! 게임 오버!"
 
-
-
-    # 4단계에 진입하면 한 번만 빙판길 배치
+# 4단계에 진입하면 한 번만 빙판길 배치
     if current_level == 3 and not ice_paths:  # 4단계에서만 적용
-        place_ice_paths(maze)
+        start = (1, 1)  # 시작 위치
+        end = (len(maze[0]) - 2, len(maze) - 2)  # 종료 위치
+        place_ice_paths(maze, start, end)
+
 
     # 플레이어 이동 중 빙판길 체크
     if current_level == 3:  # 4단계에서만 빙판길 체크
@@ -348,8 +345,6 @@ while True:
     if current_level != 2:
         cyan_objects = []  # 3단계가 아니면 하늘색 오브젝트 제거
 
-
-
     # 2단계에서 황금색 장애물 배치
     if current_level == 1 and not gold_obstacles:
         place_gold_obstacles(maze)
@@ -359,8 +354,6 @@ while True:
     # 3단계일 때만 바람 화살표 그리기
     if current_level == 2:
         draw_wind_arrow()
-
-
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -410,8 +403,10 @@ while True:
             moving = False
             path = []
             start_time = time.time()  # 제한 시간 초기화
+            maze = generate_maze(15, 9)  # 새로운 미로 생성 (1단계 리셋)
 
-        # 이동 방향 결정
+
+    # 이동 방향 결정
         if next_x > player_x:
             player_move = "RIGHT"
         elif next_x < player_x:
@@ -465,7 +460,6 @@ while True:
                 message_start_time = current_time
                 cyan_last_collected[(player_x, player_y)] = current_time
 
-
             # 이동 가능한 경우 업데이트
         if maze[next_y][next_x] != 1 and not is_opposite_direction(player_move, wind_direction):
             player_x, player_y = next_x, next_y
@@ -473,10 +467,10 @@ while True:
             # 도착점에 도착하면 다음 단계로 이동
             if maze[player_y][player_x] == 3:
                 current_level += 1
-                if current_level >= len(MAZES):
+                if current_level >= 5:
                     game_over = True
                     message = "축하합니다! 모든 단계를 클리어했습니다!"
-                    current_level = len(MAZES) - 1  # 인덱스 오류 방지
+                    current_level = len(maze) - 1  # 인덱스 오류 방지
 
                 else:
                     # 다음 단계로 초기화
@@ -516,9 +510,6 @@ while True:
     # 남은 시간 표시
     draw_timer()
 
-
-
-
     # 메시지 표시
     if message and not game_over:
         draw_message(message, 120)
@@ -535,20 +526,14 @@ while True:
                 color = RED
             pygame.draw.rect(SCREEN, color, (col * BLOCK_SIZE, row * BLOCK_SIZE + 200, BLOCK_SIZE, BLOCK_SIZE))
 
-
-
     # 용암(빨간 오브젝트) 그리기
     if current_level == 4:  # 5단계 인덱스는 4
         for (lx, ly) in lava_objects:
             pygame.draw.rect(SCREEN, RED, (lx * BLOCK_SIZE, ly * BLOCK_SIZE + 200, BLOCK_SIZE, BLOCK_SIZE))
 
-
     # 게임 루프 내 연기 이동 및 표시
     if current_level == 4:  # 5단계에서만 연기 표시
         draw_smoke()
-
-
-
 
     # 빙판길 그리기 (4단계 전용)
     if current_level == 3:
@@ -558,7 +543,7 @@ while True:
     # 하늘색 오브젝트 그리기
     if current_level == 2:
         for (cx, cy) in cyan_objects:
-                    pygame.draw.rect(SCREEN, CYAN, (cx * BLOCK_SIZE, cy * BLOCK_SIZE + 200, BLOCK_SIZE, BLOCK_SIZE))
+            pygame.draw.rect(SCREEN, CYAN, (cx * BLOCK_SIZE, cy * BLOCK_SIZE + 200, BLOCK_SIZE, BLOCK_SIZE))
 
     # 황금색 장애물 그리기
     if current_level == 1:
