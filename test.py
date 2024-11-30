@@ -18,13 +18,38 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GREEN = (0, 255, 0)
 RED = (255, 0, 0)
-BLUE = (0, 0, 255)
-GOLD = (255, 215, 0)
-CYAN = (0, 200, 255)  # 하늘색 오브젝트 색상
-MINT = (0, 255, 200)  # 민트색 빙판길 색상
+CYAN = (0, 200, 255)
+
+
+# 통로 이미지
+way_image1 = pygame.image.load("way1.png")
+way_image2 = pygame.image.load("way2.png")
+way_image3 = pygame.image.load("way3.png")
+way_image4 = pygame.image.load("way4.png")
+way_image5 = pygame.image.load("way5.png")
+
+#플레이어 이미지
+player_image = pygame.image.load("player.png")
+
+# 벽 이미지
+wall_image1 = pygame.image.load("wall1.png")
+wall_image2 = pygame.image.load("wall2.png")
+wall_image3 = pygame.image.load("wall3.png")
+wall_image4 = pygame.image.load("wall4.png")
+wall_image5 = pygame.image.load("wall5.png")
+
+#장애물 이미지
+gold_obstacle_image = pygame.image.load("gold_obstacle.png")  # 2단계
+ice_obstacle_image = pygame.image.load("ice_obstacle.png")  # 2단계
 
 # 블록 크기
 BLOCK_SIZE = 40
+
+# 이미지 크기 조정
+player_image = pygame.transform.scale(player_image, (BLOCK_SIZE, BLOCK_SIZE))
+gold_obstacle_image = pygame.transform.scale(gold_obstacle_image, (BLOCK_SIZE, BLOCK_SIZE))
+ice_obstacle_image = pygame.transform.scale(ice_obstacle_image, (BLOCK_SIZE, BLOCK_SIZE))
+
 
 # 폰트 설정 (한글 지원 폰트 사용)
 FONT = pygame.font.SysFont("Malgun Gothic", 36)
@@ -78,7 +103,37 @@ def generate_maze(width, height):
 
     return maze
 
+def draw_maze(maze):
+    maze_offset_y = 200
 
+    # 현재 게임 단계에 맞게 벽 이미지 설정
+    if current_level == 0:
+        wall_image = pygame.transform.scale(wall_image1, (BLOCK_SIZE, BLOCK_SIZE))
+        grass_image = pygame.transform.scale(way_image1, (BLOCK_SIZE, BLOCK_SIZE))
+    elif current_level == 1:
+        wall_image = pygame.transform.scale(wall_image2, (BLOCK_SIZE, BLOCK_SIZE))
+        grass_image = pygame.transform.scale(way_image2, (BLOCK_SIZE, BLOCK_SIZE))
+    elif current_level == 2:
+        wall_image = pygame.transform.scale(wall_image3, (BLOCK_SIZE, BLOCK_SIZE))
+        grass_image = pygame.transform.scale(way_image3, (BLOCK_SIZE, BLOCK_SIZE))
+    elif current_level == 3:
+        wall_image = pygame.transform.scale(wall_image4, (BLOCK_SIZE, BLOCK_SIZE))
+        grass_image = pygame.transform.scale(way_image4, (BLOCK_SIZE, BLOCK_SIZE))
+    elif current_level == 4:
+        wall_image = pygame.transform.scale(wall_image5, (BLOCK_SIZE, BLOCK_SIZE))
+        grass_image = pygame.transform.scale(way_image5, (BLOCK_SIZE, BLOCK_SIZE))
+
+
+    for y in range(len(maze)):
+        for x in range(len(maze[y])):
+            if maze[y][x] == 1:  # 벽
+                SCREEN.blit(wall_image, (x * BLOCK_SIZE, y * BLOCK_SIZE + maze_offset_y))  # Apply offset to y
+            elif maze[y][x] == 0:  # 길
+                SCREEN.blit(grass_image, (x * BLOCK_SIZE, y * BLOCK_SIZE + maze_offset_y))  # Apply offset to y
+            elif maze[y][x] == 2:  # 시작점
+                pygame.draw.rect(SCREEN, GREEN, (x * BLOCK_SIZE, y * BLOCK_SIZE + maze_offset_y, BLOCK_SIZE, BLOCK_SIZE))  # Start point as a green square
+            elif maze[y][x] == 3:  # 목적지
+                pygame.draw.rect(SCREEN, RED, (x * BLOCK_SIZE, y * BLOCK_SIZE + maze_offset_y, BLOCK_SIZE, BLOCK_SIZE))  # End point as a red square
 
 # 2단계의 황금색 장애물 좌표 초기화
 gold_obstacles = []
@@ -395,16 +450,15 @@ while True:
 
         if current_level == 1 and (next_x, next_y) in gold_obstacles:
             current_level = 0
-            player_x, player_y = 1, 1
             lives = 3
             gold_obstacles = []
             message = "황금 장애물에 닿았습니다! 1단계부터 다시 시작합니다."
+            player_x, player_y = 1, 1
             message_start_time = time.time()
             moving = False
             path = []
             start_time = time.time()  # 제한 시간 초기화
             maze = generate_maze(15, 9)  # 새로운 미로 생성 (1단계 리셋)
-
 
     # 이동 방향 결정
         if next_x > player_x:
@@ -433,9 +487,6 @@ while True:
         # 플레이어 이동 중 빙판길 체크
         if current_level == 3:
             check_ice_penalty()
-
-
-
 
         # 벽에 닿으면 이동 중지
         elif maze[next_y][next_x] == 1:
@@ -498,6 +549,7 @@ while True:
 
     # 화면 그리기
     SCREEN.fill(BLACK)
+    draw_maze(maze)
 
     # 게임 루프 내 연기 이동 및 표시
     if current_level == 4:  # 5단계에서만 연기 표시
@@ -514,18 +566,6 @@ while True:
     if message and not game_over:
         draw_message(message, 120)
 
-    # 미로 그리기
-    for row in range(len(maze)):
-        for col in range(len(maze[row])):
-            color = WHITE
-            if maze[row][col] == 1:
-                color = BLACK
-            elif maze[row][col] == 2:
-                color = GREEN
-            elif maze[row][col] == 3:
-                color = RED
-            pygame.draw.rect(SCREEN, color, (col * BLOCK_SIZE, row * BLOCK_SIZE + 200, BLOCK_SIZE, BLOCK_SIZE))
-
     # 용암(빨간 오브젝트) 그리기
     if current_level == 4:  # 5단계 인덱스는 4
         for (lx, ly) in lava_objects:
@@ -538,7 +578,7 @@ while True:
     # 빙판길 그리기 (4단계 전용)
     if current_level == 3:
         for (ix, iy) in ice_paths:
-            pygame.draw.rect(SCREEN, MINT, (ix * BLOCK_SIZE, iy * BLOCK_SIZE + 200, BLOCK_SIZE, BLOCK_SIZE))
+            SCREEN.blit(ice_obstacle_image, (ix * BLOCK_SIZE, iy * BLOCK_SIZE + 200))
 
     # 하늘색 오브젝트 그리기
     if current_level == 2:
@@ -548,7 +588,7 @@ while True:
     # 황금색 장애물 그리기
     if current_level == 1:
         for (gx, gy) in gold_obstacles:
-                    pygame.draw.rect(SCREEN, GOLD, (gx * BLOCK_SIZE, gy * BLOCK_SIZE + 200, BLOCK_SIZE, BLOCK_SIZE))
+            SCREEN.blit(gold_obstacle_image, (gx * BLOCK_SIZE, gy * BLOCK_SIZE + 200))
 
     # 경로 그리기
     if len(draw_path) > 1:
@@ -556,7 +596,7 @@ while True:
 
     # 플레이어 그리기
     if not game_over:
-        pygame.draw.rect(SCREEN, BLUE, (player_x * BLOCK_SIZE, player_y * BLOCK_SIZE + 200, BLOCK_SIZE, BLOCK_SIZE))
+        SCREEN.blit(player_image, (player_x * BLOCK_SIZE, player_y * BLOCK_SIZE + 200))
 
     # 게임 오버 메시지
     if game_over:
