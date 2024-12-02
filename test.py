@@ -4,6 +4,7 @@ import pygame
 import sys
 import random
 import time
+import math
 
 # 게임 초기화
 pygame.init()
@@ -11,7 +12,7 @@ pygame.init()
 # 화면 크기 설정
 WIDTH, HEIGHT = 600, 700
 SCREEN = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("5단계 미로 게임")
+pygame.display.set_caption("요리조리 미로")
 
 # 색상 정의
 WHITE = (255, 255, 255)
@@ -38,9 +39,11 @@ wall_image3 = pygame.image.load("wall3.png")
 wall_image4 = pygame.image.load("wall4.png")
 wall_image5 = pygame.image.load("wall5.png")
 
-#장애물 이미지
+#장애물 및 요소 이미지
 gold_obstacle_image = pygame.image.load("gold_obstacle.png")  # 2단계
 ice_obstacle_image = pygame.image.load("ice_obstacle.png")  # 2단계
+lava_obstacle_image = pygame.image.load('lava.png')  # 용암
+umbrella_image = pygame.image.load('umbrella.png')  # 우산
 
 # 블록 크기
 BLOCK_SIZE = 40
@@ -49,15 +52,68 @@ BLOCK_SIZE = 40
 player_image = pygame.transform.scale(player_image, (BLOCK_SIZE, BLOCK_SIZE))
 gold_obstacle_image = pygame.transform.scale(gold_obstacle_image, (BLOCK_SIZE, BLOCK_SIZE))
 ice_obstacle_image = pygame.transform.scale(ice_obstacle_image, (BLOCK_SIZE, BLOCK_SIZE))
+lava_obstacle_image = pygame.transform.scale(lava_obstacle_image, (BLOCK_SIZE, BLOCK_SIZE))
+umbrella_image = pygame.transform.scale(umbrella_image, (BLOCK_SIZE, BLOCK_SIZE))
 
 
 # 폰트 설정 (한글 지원 폰트 사용)
-FONT = pygame.font.SysFont("Malgun Gothic", 36)
+FONT = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 36)
 
 # 바람 방향 정의
 DIRECTIONS = ["UP", "DOWN", "LEFT", "RIGHT"]
 wind_direction = random.choice(DIRECTIONS)
 last_wind_change_time = time.time()
+
+#배경음악
+pygame.mixer.music.load("background_music.mp3")  # 경로에 맞게 수정
+pygame.mixer.music.set_volume(0.5)  # 배경 음악 볼륨 설정 (0.0에서 1.0 사이)
+pygame.mixer.music.play(-1, 0.0)  # 무한 반복 재생, 처음부터 시작
+def show_intro_screen():
+    intro_running = True
+
+    # 각 텍스트 크기 조정
+    title_font = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 50)
+    story_font = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 25)
+    start_font = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 40)
+
+    jump_height = 5
+    start_y = 300
+
+    while intro_running:
+        SCREEN.fill(WHITE)
+
+        title_text = title_font.render("요리 조리 미로", True, BLACK)
+        story_text1 = story_font.render("미로를 통과하며 다양한 재료들을 획득하자!", True, BLACK)
+        story_text2 = story_font.render("용기를 내어 목적지까지 도달하세요!", True, BLACK)
+
+        # 텍스트 출력
+        SCREEN.blit(title_text, (WIDTH // 2 - title_text.get_width() // 2, 50))
+        SCREEN.blit(story_text1, (WIDTH // 2 - story_text1.get_width() // 2, 150))
+        SCREEN.blit(story_text2, (WIDTH // 2 - story_text2.get_width() // 2, 200))
+
+        # 폴짝 뛰는 효과 구현
+        current_time = pygame.time.get_ticks()
+        jump_offset = jump_height * math.sin(current_time / 500.0 * 2 * math.pi)
+
+        # 주인공 이미지 표시 (y값에 jump_offset을 더해주어 폴짝 뛰게 만듬)
+        player_intro_image = pygame.transform.scale(player_image, (120, 120))
+        SCREEN.blit(player_intro_image, (WIDTH // 2 - 60, start_y + jump_offset))
+
+        # "게임 시작" 안내
+        start_text = start_font.render("Press SPACE to Start", True, RED)
+        SCREEN.blit(start_text, (WIDTH // 2 - start_text.get_width() // 2, 500))
+
+        # 이벤트 처리
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    intro_running = False
+
+        pygame.display.flip()
+        pygame.time.Clock().tick(60)
 
 # 랜덤 미로 생성 함수
 def generate_maze(width, height):
@@ -106,34 +162,62 @@ def generate_maze(width, height):
 def draw_maze(maze):
     maze_offset_y = 200
 
+    # 기본 이미지 설정
+    wall_image = None
+    grass_image = None
+    destination_images = {}  # 목적지별 이미지를 저장할 딕셔너리
+    start_image = pygame.image.load('start.png')
+
     # 현재 게임 단계에 맞게 벽 이미지 설정
     if current_level == 0:
         wall_image = pygame.transform.scale(wall_image1, (BLOCK_SIZE, BLOCK_SIZE))
         grass_image = pygame.transform.scale(way_image1, (BLOCK_SIZE, BLOCK_SIZE))
+        destination_images = {3: pygame.image.load('destination1.png')}
     elif current_level == 1:
         wall_image = pygame.transform.scale(wall_image2, (BLOCK_SIZE, BLOCK_SIZE))
         grass_image = pygame.transform.scale(way_image2, (BLOCK_SIZE, BLOCK_SIZE))
+        destination_images = {3: pygame.image.load('destination2.png')}
     elif current_level == 2:
         wall_image = pygame.transform.scale(wall_image3, (BLOCK_SIZE, BLOCK_SIZE))
         grass_image = pygame.transform.scale(way_image3, (BLOCK_SIZE, BLOCK_SIZE))
+        destination_images = {3: pygame.image.load('destination3.png')}
     elif current_level == 3:
         wall_image = pygame.transform.scale(wall_image4, (BLOCK_SIZE, BLOCK_SIZE))
         grass_image = pygame.transform.scale(way_image4, (BLOCK_SIZE, BLOCK_SIZE))
+        destination_images = {3: pygame.image.load('destination4.png')}
     elif current_level == 4:
         wall_image = pygame.transform.scale(wall_image5, (BLOCK_SIZE, BLOCK_SIZE))
         grass_image = pygame.transform.scale(way_image5, (BLOCK_SIZE, BLOCK_SIZE))
+        destination_images = {3: pygame.image.load('destination5.png')}
 
+    # 오류를 방지 위해 디폴트 이미지 설정
+    if wall_image is None:
+        wall_image = pygame.transform.scale(wall_image5, (BLOCK_SIZE, BLOCK_SIZE))
+
+    if grass_image is None:
+        grass_image = pygame.transform.scale(way_image5, (BLOCK_SIZE, BLOCK_SIZE))
 
     for y in range(len(maze)):
         for x in range(len(maze[y])):
             if maze[y][x] == 1:  # 벽
-                SCREEN.blit(wall_image, (x * BLOCK_SIZE, y * BLOCK_SIZE + maze_offset_y))  # Apply offset to y
+                SCREEN.blit(wall_image, (x * BLOCK_SIZE, y * BLOCK_SIZE + maze_offset_y, BLOCK_SIZE, BLOCK_SIZE))
             elif maze[y][x] == 0:  # 길
-                SCREEN.blit(grass_image, (x * BLOCK_SIZE, y * BLOCK_SIZE + maze_offset_y))  # Apply offset to y
+                SCREEN.blit(grass_image, (x * BLOCK_SIZE, y * BLOCK_SIZE + maze_offset_y, BLOCK_SIZE, BLOCK_SIZE))
             elif maze[y][x] == 2:  # 시작점
-                pygame.draw.rect(SCREEN, GREEN, (x * BLOCK_SIZE, y * BLOCK_SIZE + maze_offset_y, BLOCK_SIZE, BLOCK_SIZE))  # Start point as a green square
+                SCREEN.blit(grass_image, (x * BLOCK_SIZE, y * BLOCK_SIZE + maze_offset_y, BLOCK_SIZE, BLOCK_SIZE))
+
+                start_image_resized = pygame.transform.scale(start_image, (BLOCK_SIZE, BLOCK_SIZE))
+                SCREEN.blit(start_image_resized, (x * BLOCK_SIZE, y * BLOCK_SIZE + maze_offset_y))
             elif maze[y][x] == 3:  # 목적지
-                pygame.draw.rect(SCREEN, RED, (x * BLOCK_SIZE, y * BLOCK_SIZE + maze_offset_y, BLOCK_SIZE, BLOCK_SIZE))  # End point as a red square
+                SCREEN.blit(grass_image, (x * BLOCK_SIZE, y * BLOCK_SIZE + maze_offset_y, BLOCK_SIZE, BLOCK_SIZE))
+
+                # 목적지 이미지가 설정되어 있으면 해당 이미지를 사용
+                if 3 in destination_images:
+                    destination_image = destination_images[3]
+                    destination_image = pygame.transform.scale(destination_image, (BLOCK_SIZE, BLOCK_SIZE))
+                    SCREEN.blit(destination_image, (x * BLOCK_SIZE, y * BLOCK_SIZE + maze_offset_y))  # 목적지 이미지 출력
+                else:
+                    pygame.draw.rect(SCREEN, RED, (x * BLOCK_SIZE, y * BLOCK_SIZE + maze_offset_y, BLOCK_SIZE, BLOCK_SIZE))
 
 # 2단계의 황금색 장애물 좌표 초기화
 gold_obstacles = []
@@ -340,10 +424,10 @@ maze = generate_maze(15, 9)
 # 메시지 표시 함수
 def draw_message(text, y_offset):
     # 메시지 크기 조절
-    if text == "바람과 반대 방향으로 이동할 수 없습니다!" or "황금 장애물에 닿았습니다! 1단계부터 다시 시작합니다.":
-        font = pygame.font.SysFont("Malgun Gothic", 25)  # 글씨 크기 25
+    if text in ("바람과 반대 방향으로 이동할 수 없습니다!", "황금 장애물에 닿았습니다! 1단계부터 다시 시작합니다."):
+        font = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 25)  # 글씨 크기 25
     else:
-        font = pygame.font.SysFont("Malgun Gothic", 36)  # 기본 글씨 크기
+        font = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 30)  # 기본 글씨 크기
 
     text_surface = font.render(text, True, WHITE)
     text_rect = text_surface.get_rect(center=(WIDTH // 2, y_offset))
@@ -356,9 +440,12 @@ def draw_timer():
     elapsed_time = time.time() - start_time
     remaining_time = max(0, int(time_limit - elapsed_time))
     timer_text = FONT.render(f"남은 시간: {remaining_time}초", True, WHITE)
-    SCREEN.blit(timer_text, (WIDTH - 250, 30))
+    SCREEN.blit(timer_text, (WIDTH - 280, 30))
     return remaining_time
 
+# 메인 실행
+if __name__ == "__main__":
+    show_intro_screen()  # 인트로 화면 표시
 
 # 게임 루프
 while True:
@@ -379,7 +466,7 @@ while True:
             game_over = True
             message = "용암에 닿았습니다! 게임 오버!"
 
-# 4단계에 진입하면 한 번만 빙판길 배치
+    # 4단계에 진입하면 한 번만 빙판길 배치
     if current_level == 3 and not ice_paths:  # 4단계에서만 적용
         start = (1, 1)  # 시작 위치
         end = (len(maze[0]) - 2, len(maze) - 2)  # 종료 위치
@@ -460,7 +547,7 @@ while True:
             start_time = time.time()  # 제한 시간 초기화
             maze = generate_maze(15, 9)  # 새로운 미로 생성 (1단계 리셋)
 
-    # 이동 방향 결정
+        # 이동 방향 결정
         if next_x > player_x:
             player_move = "RIGHT"
         elif next_x < player_x:
@@ -569,7 +656,7 @@ while True:
     # 용암(빨간 오브젝트) 그리기
     if current_level == 4:  # 5단계 인덱스는 4
         for (lx, ly) in lava_objects:
-            pygame.draw.rect(SCREEN, RED, (lx * BLOCK_SIZE, ly * BLOCK_SIZE + 200, BLOCK_SIZE, BLOCK_SIZE))
+            SCREEN.blit(lava_obstacle_image, (lx * BLOCK_SIZE, ly * BLOCK_SIZE + 200))
 
     # 게임 루프 내 연기 이동 및 표시
     if current_level == 4:  # 5단계에서만 연기 표시
@@ -583,7 +670,7 @@ while True:
     # 하늘색 오브젝트 그리기
     if current_level == 2:
         for (cx, cy) in cyan_objects:
-            pygame.draw.rect(SCREEN, CYAN, (cx * BLOCK_SIZE, cy * BLOCK_SIZE + 200, BLOCK_SIZE, BLOCK_SIZE))
+            SCREEN.blit(umbrella_image, (cx * BLOCK_SIZE, cy * BLOCK_SIZE + 200))
 
     # 황금색 장애물 그리기
     if current_level == 1:
