@@ -21,40 +21,31 @@ GREEN = (0, 255, 0)
 RED = (255, 0, 0)
 CYAN = (0, 200, 255)
 
-
-# 통로 이미지
-way_image1 = pygame.image.load("way1.png")
-way_image2 = pygame.image.load("way2.png")
-way_image3 = pygame.image.load("way3.png")
-way_image4 = pygame.image.load("way4.png")
-way_image5 = pygame.image.load("way5.png")
-
-#플레이어 이미지
-player_image = pygame.image.load("player.png")
-
-# 벽 이미지
-wall_image1 = pygame.image.load("wall1.png")
-wall_image2 = pygame.image.load("wall2.png")
-wall_image3 = pygame.image.load("wall3.png")
-wall_image4 = pygame.image.load("wall4.png")
-wall_image5 = pygame.image.load("wall5.png")
-
-#장애물 및 요소 이미지
-gold_obstacle_image = pygame.image.load("gold_obstacle.png")  # 2단계
-ice_obstacle_image = pygame.image.load("ice_obstacle.png")  # 2단계
-lava_obstacle_image = pygame.image.load('lava.png')  # 용암
-umbrella_image = pygame.image.load('umbrella.png')  # 우산
-
 # 블록 크기
 BLOCK_SIZE = 40
 
-# 이미지 크기 조정
-player_image = pygame.transform.scale(player_image, (BLOCK_SIZE, BLOCK_SIZE))
-gold_obstacle_image = pygame.transform.scale(gold_obstacle_image, (BLOCK_SIZE, BLOCK_SIZE))
-ice_obstacle_image = pygame.transform.scale(ice_obstacle_image, (BLOCK_SIZE, BLOCK_SIZE))
-lava_obstacle_image = pygame.transform.scale(lava_obstacle_image, (BLOCK_SIZE, BLOCK_SIZE))
-umbrella_image = pygame.transform.scale(umbrella_image, (BLOCK_SIZE, BLOCK_SIZE))
+# 이미지 경로들
+image_paths = {
+    'way': ["way1.png", "way2.png", "way3.png", "way4.png", "way5.png"],
+    'wall': ["wall1.png", "wall2.png", "wall3.png", "wall4.png", "wall5.png"],
+    'obstacles': ["gold_obstacle.png", "ice_obstacle.png", "lava.png", "umbrella.png"],
+    'player': "player.png",
+    'elements': ["tomato.png", "shrimp.png", "pepper.png", "cream.png", "basil.png", "question_mark.png"]
+}
 
+
+# 이미지 로딩 및 크기 조정 함수
+def load_images(paths, size=(BLOCK_SIZE, BLOCK_SIZE)):
+    images = {}
+    for key, path_list in paths.items():
+        if isinstance(path_list, list):
+            images[key] = [pygame.transform.scale(pygame.image.load(p), size) for p in path_list]
+        else:
+            images[key] = pygame.transform.scale(pygame.image.load(path_list), size)
+    return images
+
+# 이미지 로드
+images = load_images(image_paths)
 
 # 폰트 설정 (한글 지원 폰트 사용)
 FONT = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 36)
@@ -68,6 +59,52 @@ last_wind_change_time = time.time()
 pygame.mixer.music.load("background_music.mp3")  # 경로에 맞게 수정
 pygame.mixer.music.set_volume(0.5)  # 배경 음악 볼륨 설정 (0.0에서 1.0 사이)
 pygame.mixer.music.play(-1, 0.0)  # 무한 반복 재생, 처음부터 시작
+
+collected_items = []
+reward_message = None
+reward_message_start_time = None
+blink_count = 0  # 현재 깜빡임 횟수
+max_blinks = 3  # 최대 깜빡임 횟수
+blink_interval = 0.35  # 깜빡임 간격 (초)
+
+level_rewards = {
+    1: {"message": "토마토를 획득했다!", "image": images['elements'][0]},
+    2: {"message": "새우를 획득했다!", "image": images['elements'][1]},
+    3: {"message": "고추를 획득했다!", "image": images['elements'][2]},
+    4: {"message": "크림을 획득했다!", "image": images['elements'][3]},
+    5: {"message": "바질을 획득했다!", "image": images['elements'][4]},
+}
+
+collected_items = [images['elements'][5]] * 5  # 총 5개의 물음표로 시작
+
+# 보상 메시지를 그리는 함수
+def draw_reward_message(message, blink_start_time):
+    """보상 메시지를 화면에 깜빡거리며 표시"""
+    global blink_count
+
+    elapsed_time = time.time() - blink_start_time
+    blink_on = int(elapsed_time / blink_interval) % 2 == 0
+
+    if blink_count < max_blinks * 3:
+        if blink_on:
+            text = FONT.render(message, True, (255, 255, 255))
+            text_rect = text.get_rect(center=(SCREEN.get_width() // 2, SCREEN.get_height() - 50))  # 화면 하단 중앙
+            SCREEN.blit(text, text_rect)
+    else:
+        return False
+
+    # 깜빡임 횟수 업데이트
+    if int(elapsed_time / blink_interval) > blink_count:
+        blink_count += 1
+
+    return True
+
+#획득 재료 업데이트
+def update_collected_items(level):
+    if level in level_rewards:
+        item_image = level_rewards[level]["image"]
+        collected_items[level - 1] = item_image
+
 def show_intro_screen():
     intro_running = True
 
@@ -96,7 +133,7 @@ def show_intro_screen():
         jump_offset = jump_height * math.sin(current_time / 500.0 * 2 * math.pi)
 
         # 주인공 이미지 표시 (y값에 jump_offset을 더해주어 폴짝 뛰게 만듬)
-        player_intro_image = pygame.transform.scale(player_image, (120, 120))
+        player_intro_image = pygame.transform.scale(images['player'], (120, 120))
         SCREEN.blit(player_intro_image, (WIDTH // 2 - 60, start_y + jump_offset))
 
         # "게임 시작" 안내
@@ -170,32 +207,32 @@ def draw_maze(maze):
 
     # 현재 게임 단계에 맞게 벽 이미지 설정
     if current_level == 0:
-        wall_image = pygame.transform.scale(wall_image1, (BLOCK_SIZE, BLOCK_SIZE))
-        grass_image = pygame.transform.scale(way_image1, (BLOCK_SIZE, BLOCK_SIZE))
-        destination_images = {3: pygame.image.load('destination1.png')}
+        wall_image = images['wall'][0]  # wall_image1
+        grass_image = images['way'][0]  # way_image1
+        destination_images = {3: images['elements'][0]}  # tomato
     elif current_level == 1:
-        wall_image = pygame.transform.scale(wall_image2, (BLOCK_SIZE, BLOCK_SIZE))
-        grass_image = pygame.transform.scale(way_image2, (BLOCK_SIZE, BLOCK_SIZE))
-        destination_images = {3: pygame.image.load('destination2.png')}
+        wall_image = images['wall'][1]  # wall_image2
+        grass_image = images['way'][1]  # way_image2
+        destination_images = {3: images['elements'][2]}  # pepper
     elif current_level == 2:
-        wall_image = pygame.transform.scale(wall_image3, (BLOCK_SIZE, BLOCK_SIZE))
-        grass_image = pygame.transform.scale(way_image3, (BLOCK_SIZE, BLOCK_SIZE))
-        destination_images = {3: pygame.image.load('destination3.png')}
+        wall_image = images['wall'][2]  # wall_image3
+        wall_image = images['wall'][2]  # wall_image3
+        destination_images = {3: images['elements'][2]}  # pepper
     elif current_level == 3:
-        wall_image = pygame.transform.scale(wall_image4, (BLOCK_SIZE, BLOCK_SIZE))
-        grass_image = pygame.transform.scale(way_image4, (BLOCK_SIZE, BLOCK_SIZE))
-        destination_images = {3: pygame.image.load('destination4.png')}
+        wall_image = images['wall'][3]  # wall_image4
+        grass_image = images['way'][3]  # way_image4
+        destination_images = {3: images['elements'][3]}  # cream
     elif current_level == 4:
-        wall_image = pygame.transform.scale(wall_image5, (BLOCK_SIZE, BLOCK_SIZE))
-        grass_image = pygame.transform.scale(way_image5, (BLOCK_SIZE, BLOCK_SIZE))
-        destination_images = {3: pygame.image.load('destination5.png')}
+        wall_image = images['wall'][4]  # wall_image5
+        grass_image = images['way'][4]  # way_image5
+        destination_images = {3: images['elements'][4]}  # basil
 
     # 오류를 방지 위해 디폴트 이미지 설정
     if wall_image is None:
-        wall_image = pygame.transform.scale(wall_image5, (BLOCK_SIZE, BLOCK_SIZE))
+        wall_image = pygame.transform.scale(images['wall'][4], (BLOCK_SIZE, BLOCK_SIZE))
 
     if grass_image is None:
-        grass_image = pygame.transform.scale(way_image5, (BLOCK_SIZE, BLOCK_SIZE))
+        grass_image = pygame.transform.scale(images['way'][4], (BLOCK_SIZE, BLOCK_SIZE))
 
     for y in range(len(maze)):
         for x in range(len(maze[y])):
@@ -240,7 +277,7 @@ last_ice_position = None
 # 빨간 오브젝트(용암) 관련 변수
 lava_objects = []
 lava_last_spawn_time = 0
-lava_spawn_interval = 3  # 용암 생성 간격 (초)
+lava_spawn_interval = 10  # 용암 생성 간격 (초)
 lava_duration = 2  # 용암 지속 시간 (초)
 
 # 연기 관련 변수
@@ -250,13 +287,21 @@ smoke_width = 100     # 연기의 폭
 smoke_height = HEIGHT  # 연기의 높이 (화면 전체 높이)
 smoke_color = (100, 100, 100, 128)  # 연기의 색상 (회색, 반투명)
 
+#모든 아이템 출력
+def draw_collected_items():
+    item_start_x = 20
+    item_start_y = 150
+    item_spacing = 60
+
+    for i, item in enumerate(collected_items):
+        SCREEN.blit(item, (item_start_x + i * item_spacing, item_start_y))
+
 # 바람 방향 업데이트 함수
 def change_wind_direction():
     global wind_direction, last_wind_change_time
     if time.time() - last_wind_change_time > 5:
         wind_direction = random.choice(DIRECTIONS)
         last_wind_change_time = time.time()
-
 
 # 바람 방향 표시
 def draw_wind_arrow():
@@ -275,7 +320,6 @@ def draw_wind_arrow():
         arrow_surface = FONT.render(f"바람 방향: {arrow_text}", True, WHITE)
         arrow_rect = arrow_surface.get_rect(center=(WIDTH // 2, 90))
         SCREEN.blit(arrow_surface, arrow_rect)
-
 
 # 이동 방향이 바람과 반대인지 확인
 def is_opposite_direction(player_move, wind_direction):
@@ -315,7 +359,6 @@ def place_cyan_objects(maze):
             cyan_objects.append((x, y))
             cyan_last_collected[(x, y)] = 0  # 초기화 시간 설정
 
-
 # 빙판길 배치 함수 (4단계 전용)
 def place_ice_paths(maze, start, end):
     global ice_paths
@@ -325,7 +368,6 @@ def place_ice_paths(maze, start, end):
         # 플레이어가 이동 가능한 경로(0)인 경우에만 빙판길 배치
         if maze[y][x] == 0 and (x, y) not in ice_paths:
             ice_paths.append((x, y))
-
 
 # 빙판길 패널티 체크 함수
 def check_ice_penalty():
@@ -365,7 +407,6 @@ def check_ice_penalty():
         # 빙판길이 아닌 위치로 이동했을 때 최근 위치 초기화
         last_ice_position = None
 
-
 # 빨간 오브젝트(용암) 생성 함수
 def spawn_lava(maze):
     global lava_objects
@@ -375,7 +416,6 @@ def spawn_lava(maze):
         x, y = random.randint(0, len(maze[0]) - 1), random.randint(0, len(maze) - 1)
         if maze[y][x] == 0 and (x, y) not in lava_objects:  # 이동 가능한 경로에만 생성
             lava_objects.append((x, y))
-
 
 def draw_smoke():
     global smoke_position_x
@@ -400,7 +440,6 @@ def draw_smoke():
     # 연기를 화면 상단 300 픽셀 아래에 표시
     SCREEN.blit(smoke_surface, (smoke_position_x, 200))
 
-
 # 시간 관련 변수
 time_limit = 60
 start_time = time.time()
@@ -419,8 +458,6 @@ def reset_level():
 # 게임 초기화 단계에서 미로 생성
 maze = generate_maze(15, 9)
 
-
-
 # 메시지 표시 함수
 def draw_message(text, y_offset):
     # 메시지 크기 조절
@@ -432,7 +469,6 @@ def draw_message(text, y_offset):
     text_surface = font.render(text, True, WHITE)
     text_rect = text_surface.get_rect(center=(WIDTH // 2, y_offset))
     SCREEN.blit(text_surface, text_rect)
-
 
 # 남은 시간 표시 함수
 def draw_timer():
@@ -471,7 +507,6 @@ while True:
         start = (1, 1)  # 시작 위치
         end = (len(maze[0]) - 2, len(maze) - 2)  # 종료 위치
         place_ice_paths(maze, start, end)
-
 
     # 플레이어 이동 중 빙판길 체크
     if current_level == 3:  # 4단계에서만 빙판길 체크
@@ -539,7 +574,7 @@ while True:
             current_level = 0
             lives = 3
             gold_obstacles = []
-            message = "황금 장애물에 닿았습니다! 1단계부터 다시 시작합니다."
+            message = "해파리에 닿았습니다! 1단계 리턴!"
             player_x, player_y = 1, 1
             message_start_time = time.time()
             moving = False
@@ -594,7 +629,7 @@ while True:
             current_time = time.time()
             if current_time - cyan_last_collected[(player_x, player_y)] >= 10:
                 start_time += 5
-                message = "하늘색 오브젝트 경유! 5초 추가!"
+                message = "우산 오브젝트 경유! 5초 추가!"
                 message_start_time = current_time
                 cyan_last_collected[(player_x, player_y)] = current_time
 
@@ -609,19 +644,30 @@ while True:
                     game_over = True
                     message = "축하합니다! 모든 단계를 클리어했습니다!"
                     current_level = len(maze) - 1  # 인덱스 오류 방지
+                    collected_items[4] = images['elements'][4]
 
                 else:
-                    # 다음 단계로 초기화
-                    player_x, player_y = 1, 1
-                    path = []
-                    moving = False
-                    message = f"다음 단계로 이동합니다: {current_level + 1} 단계"
-                    message_start_time = time.time()
-                    reset_level()
-                    if current_level == 1:
-                        place_gold_obstacles(maze)
+                    reward_message = None
 
+                    if current_level in level_rewards:
+                        reward_data = level_rewards[current_level]
+                        reward_message = reward_data["message"]
+                        item_image = reward_data["image"]
 
+                        collected_items[current_level - 1] = item_image
+                        reward_message_start_time = time.time()
+                        blink_count = 0
+
+                        message = f"다음 단계로 이동합니다: {current_level + 1} 단계"
+
+                        player_x, player_y = 1, 1
+                        path = []
+                        moving = False
+                        message_start_time = time.time()
+                        reset_level()
+
+                        if current_level == 1:
+                            place_gold_obstacles(maze)
 
     # 메시지 사라짐 처리 (3초 뒤에 사라지게 설정)
     if message_start_time and time.time() - message_start_time > 3:
@@ -636,7 +682,14 @@ while True:
 
     # 화면 그리기
     SCREEN.fill(BLACK)
+    draw_collected_items()
     draw_maze(maze)
+
+    #획득 재료 알림 깜빡이기
+    if reward_message and reward_message_start_time:
+        if not draw_reward_message(reward_message, reward_message_start_time):
+            reward_message = None
+            reward_message_start_time = None
 
     # 게임 루프 내 연기 이동 및 표시
     if current_level == 4:  # 5단계에서만 연기 표시
@@ -656,7 +709,7 @@ while True:
     # 용암(빨간 오브젝트) 그리기
     if current_level == 4:  # 5단계 인덱스는 4
         for (lx, ly) in lava_objects:
-            SCREEN.blit(lava_obstacle_image, (lx * BLOCK_SIZE, ly * BLOCK_SIZE + 200))
+            SCREEN.blit(images['obstacles'][2], (lx * BLOCK_SIZE, ly * BLOCK_SIZE + 200))
 
     # 게임 루프 내 연기 이동 및 표시
     if current_level == 4:  # 5단계에서만 연기 표시
@@ -665,17 +718,17 @@ while True:
     # 빙판길 그리기 (4단계 전용)
     if current_level == 3:
         for (ix, iy) in ice_paths:
-            SCREEN.blit(ice_obstacle_image, (ix * BLOCK_SIZE, iy * BLOCK_SIZE + 200))
+            SCREEN.blit(images['obstacles'][1], (ix * BLOCK_SIZE, iy * BLOCK_SIZE + 200))
 
     # 하늘색 오브젝트 그리기
     if current_level == 2:
         for (cx, cy) in cyan_objects:
-            SCREEN.blit(umbrella_image, (cx * BLOCK_SIZE, cy * BLOCK_SIZE + 200))
+            SCREEN.blit(images['obstacles'][3], (cx * BLOCK_SIZE, cy * BLOCK_SIZE + 200))
 
     # 황금색 장애물 그리기
     if current_level == 1:
         for (gx, gy) in gold_obstacles:
-            SCREEN.blit(gold_obstacle_image, (gx * BLOCK_SIZE, gy * BLOCK_SIZE + 200))
+            SCREEN.blit(images['obstacles'][0], (gx * BLOCK_SIZE, gy * BLOCK_SIZE + 200))
 
     # 경로 그리기
     if len(draw_path) > 1:
@@ -683,7 +736,7 @@ while True:
 
     # 플레이어 그리기
     if not game_over:
-        SCREEN.blit(player_image, (player_x * BLOCK_SIZE, player_y * BLOCK_SIZE + 200))
+        SCREEN.blit(images['player'], (player_x * BLOCK_SIZE, player_y * BLOCK_SIZE + 200))
 
     # 게임 오버 메시지
     if game_over:
