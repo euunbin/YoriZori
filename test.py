@@ -277,7 +277,7 @@ last_ice_position = None
 # 빨간 오브젝트(용암) 관련 변수
 lava_objects = []
 lava_last_spawn_time = 0
-lava_spawn_interval = 10  # 용암 생성 간격 (초)
+lava_spawn_interval = 3  # 용암 생성 간격 (초)
 lava_duration = 2  # 용암 지속 시간 (초)
 
 # 연기 관련 변수
