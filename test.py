@@ -1,5 +1,3 @@
-from collections import deque
-
 import pygame
 import sys
 import random
@@ -35,20 +33,26 @@ image_paths = {
 
 
 # 이미지 로딩 및 크기 조정 함수
-def load_images(paths, size=(BLOCK_SIZE, BLOCK_SIZE)):
+def load_images(paths, sizes=None):
+    # sizes가 주어지지 않으면 기본값을 설정
+    if sizes is None:
+        sizes = {}
+
     images = {}
-    for key, path_list in paths.items():
-        if isinstance(path_list, list):
-            images[key] = [pygame.transform.scale(pygame.image.load(p), size) for p in path_list]
+    for key, path in paths.items():
+        # 각 이미지에 대해 크기를 다르게 지정
+        size = sizes.get(key, (BLOCK_SIZE, BLOCK_SIZE))
+        if isinstance(path, list):
+            images[key] = [pygame.transform.scale(pygame.image.load(p), size) for p in path]
         else:
-            images[key] = pygame.transform.scale(pygame.image.load(path_list), size)
+            images[key] = pygame.transform.scale(pygame.image.load(path), size)
     return images
 
 # 이미지 로드
 images = load_images(image_paths)
 
 # 폰트 설정 (한글 지원 폰트 사용)
-FONT = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 36)
+FONT = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 30)
 
 # 바람 방향 정의
 DIRECTIONS = ["UP", "DOWN", "LEFT", "RIGHT"]
@@ -63,9 +67,6 @@ pygame.mixer.music.play(-1, 0.0)  # 무한 반복 재생, 처음부터 시작
 collected_items = []
 reward_message = None
 reward_message_start_time = None
-blink_count = 0  # 현재 깜빡임 횟수
-max_blinks = 3  # 최대 깜빡임 횟수
-blink_interval = 0.35  # 깜빡임 간격 (초)
 
 level_rewards = {
     1: {"message": "토마토를 획득했다!", "image": images['elements'][0]},
@@ -78,26 +79,22 @@ level_rewards = {
 collected_items = [images['elements'][5]] * 5  # 총 5개의 물음표로 시작
 
 # 보상 메시지를 그리는 함수
-def draw_reward_message(message, blink_start_time):
-    """보상 메시지를 화면에 깜빡거리며 표시"""
-    global blink_count
+def draw_reward_message(message, start_time):
+    elapsed_time = time.time() - start_time
 
-    elapsed_time = time.time() - blink_start_time
-    blink_on = int(elapsed_time / blink_interval) % 2 == 0
+    blink_interval = 0.5
 
-    if blink_count < max_blinks * 3:
-        if blink_on:
-            text = FONT.render(message, True, (255, 255, 255))
-            text_rect = text.get_rect(center=(SCREEN.get_width() // 2, SCREEN.get_height() - 50))  # 화면 하단 중앙
-            SCREEN.blit(text, text_rect)
+    # 깜빡임을 위해 블링크 카운트를 계산
+    blink_count = int(elapsed_time / blink_interval)
+
+    if blink_count % 2 == 0:
+        screen_message = FONT.render(message, True, (255, 255, 255))
+        message_rect = screen_message.get_rect(center=(SCREEN.get_width() // 2, SCREEN.get_height() - 50))  # 화면 하단 중앙
+        SCREEN.blit(screen_message, message_rect)
+        return True
     else:
         return False
 
-    # 깜빡임 횟수 업데이트
-    if int(elapsed_time / blink_interval) > blink_count:
-        blink_count += 1
-
-    return True
 
 #획득 재료 업데이트
 def update_collected_items(level):
@@ -107,47 +104,108 @@ def update_collected_items(level):
 
 def show_intro_screen():
     intro_running = True
-
-    # 각 텍스트 크기 조정
-    title_font = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 50)
-    story_font = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 25)
-    start_font = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 40)
-
     jump_height = 5
     start_y = 300
+    page = 0
+
+    # 폰트 설정
+    title_font_large = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 50)
+    title_font_small = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 30)
+    story_font = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 25)
+    button_font = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 30)
+
+    # 이미지 로드
+    intro_images = [
+        pygame.image.load('intro1.png'),
+        pygame.image.load('intro2.png'),
+        pygame.image.load('intro3.png'),
+        pygame.image.load('intro4.png'),
+        pygame.image.load('intro5.png'),
+        pygame.image.load('intro6.png'),
+    ]
+
+    # 각 이미지의 목표 너비 설정
+    desired_widths = [300, 350, 350, 450, 500, 400]
+
+    # 각 이미지 크기 조정
+    for i in range(len(intro_images)):
+        original_width, original_height = intro_images[i].get_width(), intro_images[i].get_height()
+        desired_width = desired_widths[i]
+        aspect_ratio = original_width / original_height
+        desired_height = int(desired_width / aspect_ratio)
+        intro_images[i] = pygame.transform.scale(intro_images[i], (desired_width, desired_height))
 
     while intro_running:
-        SCREEN.fill(WHITE)
+        SCREEN.fill(BLACK)
 
-        title_text = title_font.render("요리 조리 미로", True, BLACK)
-        story_text1 = story_font.render("미로를 통과하며 다양한 재료들을 획득하자!", True, BLACK)
-        story_text2 = story_font.render("용기를 내어 목적지까지 도달하세요!", True, BLACK)
+        # 타이틀 페이지
+        if page == 0:
+            title_text1 = title_font_large.render("요리조리 미로", True, WHITE)
+            title_text2 = title_font_small.render(": 토니의 재료 탐험", True, WHITE)
+            SCREEN.blit(title_text1, (WIDTH // 2 - title_text1.get_width() // 2, 100))
+            SCREEN.blit(title_text2, (WIDTH // 2 - title_text2.get_width() // 2, 150))
 
-        # 텍스트 출력
-        SCREEN.blit(title_text, (WIDTH // 2 - title_text.get_width() // 2, 50))
-        SCREEN.blit(story_text1, (WIDTH // 2 - story_text1.get_width() // 2, 150))
-        SCREEN.blit(story_text2, (WIDTH // 2 - story_text2.get_width() // 2, 200))
+        # 스토리 페이지
+        elif 1 <= page <= 6:
+            image_rect = intro_images[page - 1].get_rect(center=(WIDTH // 2, HEIGHT // 2 - 50))
+            SCREEN.blit(intro_images[page - 1], image_rect)
 
-        # 폴짝 뛰는 효과 구현
-        current_time = pygame.time.get_ticks()
-        jump_offset = jump_height * math.sin(current_time / 500.0 * 2 * math.pi)
+            # 페이지에 따라 스토리 텍스트 변경
+            if page == 1:
+                story_text1 = story_font.render("흑백요리사 대회를 앞둔 토니.", True, WHITE)
+                story_text2 = story_font.render("그는 최고의 파스타를 만들고 싶어 한다.", True, WHITE)
+            elif page == 2:
+                story_text1 = story_font.render("전설의 황제 파스타를 만들 수만 있다면,", True, WHITE)
+                story_text2 = story_font.render("대회의 우승은 확실할 것이다!", True, WHITE)
+            elif page == 3:
+                story_text1 = story_font.render("우연히 발견한 요리책 '맛의 미로'.", True, WHITE)
+                story_text2 = story_font.render("책에는 황제 파스타의 비밀 재료가 적혀 있었다.", True, WHITE)
+            elif page == 4:
+                story_text1 = story_font.render("하지만 재료는 험난한 미로에 있으며,", True, WHITE)
+                story_text2 = story_font.render("대부분의 사람들이 돌아오지 못했다", True, WHITE)
+            elif page == 5:
+                story_text1 = story_font.render("토니는 결심했다.", True, WHITE)
+                story_text2 = story_font.render("'황제 파스타'를 위해선 도전해야해!'", True, WHITE)
+            elif page == 6:
+                story_text1 = story_font.render("당신은 맛의 미로에서", True, WHITE)
+                story_text2 = story_font.render("비밀 재료를 찾아야 합니다!", True, WHITE)
 
-        # 주인공 이미지 표시 (y값에 jump_offset을 더해주어 폴짝 뛰게 만듬)
-        player_intro_image = pygame.transform.scale(images['player'], (120, 120))
-        SCREEN.blit(player_intro_image, (WIDTH // 2 - 60, start_y + jump_offset))
+            SCREEN.blit(story_text1, (WIDTH // 2 - story_text1.get_width() // 2, HEIGHT - 150))
+            SCREEN.blit(story_text2, (WIDTH // 2 - story_text2.get_width() // 2, HEIGHT - 100))
 
-        # "게임 시작" 안내
-        start_text = start_font.render("Press SPACE to Start", True, RED)
-        SCREEN.blit(start_text, (WIDTH // 2 - start_text.get_width() // 2, 500))
+        # 폴짝 뛰는 효과 구현 (첫 페이지만 표시)
+        if page == 0:
+            intro_background = pygame.image.load('intro0.png')
+            intro_background = pygame.transform.scale(intro_background, (300, 300))  # 배경 크기 조정
+            background_rect = intro_background.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 100))  # 중앙보다 아래로 위치 조정
+            SCREEN.blit(intro_background, background_rect.topleft)  # 배경을 중앙에 그리기
 
-        # 이벤트 처리
+            # 플레이어 이미지 표시
+            current_time = pygame.time.get_ticks()
+            jump_offset = jump_height * math.sin(current_time / 500.0 * 2 * math.pi)
+            player_intro_image = pygame.transform.scale(images['player'], (120, 120))
+            player_rect = player_intro_image.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 100 + jump_offset))  # 배경과 동일한 오프셋 적용
+            SCREEN.blit(player_intro_image, player_rect.topleft)  # 플레이어 이미지 올리기
+
+        #버튼 표시
+        if page < 6:
+            next_button_text = button_font.render("다음", True, RED)
+        else:
+            next_button_text = button_font.render("시작", True, RED)
+
+        next_button_rect = next_button_text.get_rect(topright=(SCREEN.get_width() - 20, 20))
+        SCREEN.blit(next_button_text, next_button_rect)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    intro_running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if next_button_rect.collidepoint(event.pos):
+                    if page < 6:
+                        page += 1
+                    else:
+                        intro_running = False
 
         pygame.display.flip()
         pygame.time.Clock().tick(60)
@@ -213,7 +271,7 @@ def draw_maze(maze):
     elif current_level == 1:
         wall_image = images['wall'][1]  # wall_image2
         grass_image = images['way'][1]  # way_image2
-        destination_images = {3: images['elements'][2]}  # pepper
+        destination_images = {3: images['elements'][1]}  # shrimp
     elif current_level == 2:
         wall_image = images['wall'][2]  # wall_image3
         wall_image = images['wall'][2]  # wall_image3
@@ -339,6 +397,12 @@ moving = False
 path = []
 draw_path = []
 
+def darken_screen():
+    dark_surface = pygame.Surface(SCREEN.get_size())
+    dark_surface.fill((0, 0, 0))
+    dark_surface.set_alpha(200)  # 반투명 효과
+    SCREEN.blit(dark_surface, (0, 0))  # 화면에 반투명 레이어 추가
+
 # 황금색 장애물 배치 함수
 def place_gold_obstacles(maze):
     global gold_obstacles
@@ -460,13 +524,18 @@ maze = generate_maze(15, 9)
 
 # 메시지 표시 함수
 def draw_message(text, y_offset):
-    # 메시지 크기 조절
-    if text in ("바람과 반대 방향으로 이동할 수 없습니다!", "황금 장애물에 닿았습니다! 1단계부터 다시 시작합니다."):
-        font = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 25)  # 글씨 크기 25
+    if text == "GAME OVER":
+        font = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 80)  # 글씨 크기 80
+        color = (255, 0, 0)  # 빨간색
     else:
-        font = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 30)  # 기본 글씨 크기
+        # 기본 메시지 크기 설정
+        if text in ("바람과 반대 방향으로 이동할 수 없습니다!", "황금 장애물에 닿았습니다! 1단계부터 다시 시작합니다."):
+            font = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 25)  # 글씨 크기 25
+        else:
+            font = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 30)  # 기본 글씨 크기
+        color = WHITE
 
-    text_surface = font.render(text, True, WHITE)
+    text_surface = font.render(text, True, color)
     text_rect = text_surface.get_rect(center=(WIDTH // 2, y_offset))
     SCREEN.blit(text_surface, text_rect)
 
@@ -479,9 +548,104 @@ def draw_timer():
     SCREEN.blit(timer_text, (WIDTH - 280, 30))
     return remaining_time
 
+def scale_image(image, target_width, target_height):
+    original_width, original_height = image.get_width(), image.get_height()
+
+    aspect_ratio = original_width / original_height
+
+    # 주어진 목표 크기에서 비율에 맞는 새로운 크기 계산
+    if target_width / target_height > aspect_ratio:
+        new_width = int(target_height * aspect_ratio)
+        new_height = target_height
+    else:
+        new_width = target_width
+        new_height = int(target_width / aspect_ratio)
+
+    return pygame.transform.smoothscale(image, (new_width, new_height))
+
+def ending_function():
+    SCREEN.fill(BLACK)
+
+    # 페이지 추적
+    page = 0
+    pages = [
+        "요리 중 ...",
+        "황제 파스타를 완성했다!",
+        "심사 중 ...",
+        "축하합니다!\n흑백요리사 대회에서 우승하셨습니다!!",
+    ]
+
+    # 이미지 로드 (각각의 페이지마다 다른 이미지)
+    page_images = [
+        pygame.image.load('end1.png'),
+        pygame.image.load('end2.png'),
+        pygame.image.load('end3.png'),
+        pygame.image.load('end4.png'),
+    ]
+
+    desired_widths = [350, 500, 450, 500]
+
+    # 각 이미지 크기 조정
+    for i in range(len(page_images)):
+        original_width, original_height = page_images[i].get_width(), page_images[i].get_height()
+        desired_width = desired_widths[i]
+        aspect_ratio = original_width / original_height
+        desired_height = int(desired_width / aspect_ratio)
+        page_images[i] = pygame.transform.scale(page_images[i], (desired_width, desired_height))
+
+    while page < len(pages):
+        SCREEN.fill(BLACK)
+
+        # 페이지 텍스트 출력
+        if page == 3:
+            page_text1 = FONT.render("축하합니다!", True, WHITE)
+            page_text2 = FONT.render("흑백요리사 대회에서 우승하셨습니다!!", True, WHITE)
+            text_rect1 = page_text1.get_rect(center=(SCREEN.get_width() // 2, SCREEN.get_height() // 4))
+            text_rect2 = page_text2.get_rect(center=(SCREEN.get_width() // 2, SCREEN.get_height() // 4 + 50))
+            SCREEN.blit(page_text1, text_rect1)
+            SCREEN.blit(page_text2, text_rect2)
+        else:
+            page_text = FONT.render(pages[page], True, WHITE)
+            text_rect = page_text.get_rect(center=(SCREEN.get_width() // 2, SCREEN.get_height() // 4))
+            SCREEN.blit(page_text, text_rect)
+
+        image_rect = page_images[page].get_rect(center=(SCREEN.get_width() // 2, SCREEN.get_height() // 2 + 100))
+        SCREEN.blit(page_images[page], image_rect)
+
+        # 마지막 페이지에서 "ESC"로 종료하라는 텍스트 표시
+        if page == 3:
+            esc_text = FONT.render("ESC를 눌러 종료하세요", True, RED)
+            esc_text_rect = esc_text.get_rect(topright=(SCREEN.get_width() - 20, 20))
+            SCREEN.blit(esc_text, esc_text_rect)
+
+        # "다음" 버튼 표시 (마지막 페이지에서는 버튼 없이 처리)
+        if page != len(pages) - 1:
+            next_button_text = FONT.render("다음", True, RED)
+            next_button_rect = next_button_text.get_rect(topright=(SCREEN.get_width() - 20, 20))  # 화면 하단 중앙에 위치
+            SCREEN.blit(next_button_text, next_button_rect)
+
+        pygame.display.update()
+
+        waiting_for_next = True
+        while waiting_for_next:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                elif event.type == pygame.KEYDOWN:
+                    if page == len(pages) - 1 and event.key == pygame.K_ESCAPE:
+                        pygame.quit()
+                        sys.exit()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if page != len(pages) - 1 and next_button_rect.collidepoint(event.pos):  # 마지막 페이지가 아니면 "다음" 버튼 클릭
+                        waiting_for_next = False
+
+        page += 1
+
 # 메인 실행
 if __name__ == "__main__":
-    show_intro_screen()  # 인트로 화면 표시
+    show_intro_screen()
+    start_time = time.time()
 
 # 게임 루프
 while True:
@@ -636,18 +800,35 @@ while True:
             # 이동 가능한 경우 업데이트
         if maze[next_y][next_x] != 1 and not is_opposite_direction(player_move, wind_direction):
             player_x, player_y = next_x, next_y
+            level_completed = False  # 플래그 추가
 
             # 도착점에 도착하면 다음 단계로 이동
             if maze[player_y][player_x] == 3:
+                level_completed = True
                 current_level += 1
+
                 if current_level >= 5:
-                    game_over = True
+
+                    reward_data = level_rewards[5]
+                    reward_message = reward_data["message"]
+
+                    reward_message_start_time = time.time()
+                    blink_count = 0
+
                     message = "축하합니다! 모든 단계를 클리어했습니다!"
                     current_level = len(maze) - 1  # 인덱스 오류 방지
                     collected_items[4] = images['elements'][4]
+                    game_over = False
+
+                    while draw_reward_message(reward_message, reward_message_start_time):
+                        pygame.display.update()
+
+                    pygame.display.update()
+                    ending_function()
 
                 else:
                     reward_message = None
+                    game_over = False
 
                     if current_level in level_rewards:
                         reward_data = level_rewards[current_level]
@@ -741,7 +922,6 @@ while True:
     # 게임 오버 메시지
     if game_over:
         draw_message(message, HEIGHT // 2 + 240)
-        draw_message("ESC를 눌러 종료하세요.", HEIGHT // 2 + 290)
 
     # 바람 화살표 그리기
     draw_wind_arrow()
@@ -752,7 +932,22 @@ while True:
 
     # ESC 키로 게임 종료
     if game_over:
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_ESCAPE]:
-            pygame.quit()
-            sys.exit()
+
+        # 게임 오버 화면 출력
+        darken_screen()
+        draw_message("GAME OVER", HEIGHT // 2)
+        draw_message("ESC를 눌러 종료하세요.", HEIGHT // 2 + 50)
+        pygame.display.update()
+
+        # 게임 종료 대기 루프
+        waiting_for_exit = True
+        while waiting_for_exit:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+
+                # ESC 키 입력 처리
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
