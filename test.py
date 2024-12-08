@@ -28,7 +28,7 @@ image_paths = {
     'wall': ["wall1.png", "wall2.png", "wall3.png", "wall4.png", "wall5.png"],
     'obstacles': ["gold_obstacle.png", "ice_obstacle.png", "lava.png", "umbrella.png"],
     'player': "player.png",
-    'elements': ["tomato.png", "shrimp.png", "pepper.png", "cream.png", "basil.png", "question_mark.png"]
+    'elements': ["tomato.png", "pepper.png","shrimp.png", "cream.png", "basil.png", "question_mark.png"]
 }
 
 
@@ -70,13 +70,113 @@ reward_message_start_time = None
 
 level_rewards = {
     1: {"message": "토마토를 획득했다!", "image": images['elements'][0]},
-    2: {"message": "새우를 획득했다!", "image": images['elements'][1]},
-    3: {"message": "고추를 획득했다!", "image": images['elements'][2]},
+    2: {"message": "고추를 획득했다!", "image": images['elements'][1]},
+    3: {"message": "새우를 획득했다!", "image": images['elements'][2]},
     4: {"message": "크림을 획득했다!", "image": images['elements'][3]},
     5: {"message": "바질을 획득했다!", "image": images['elements'][4]},
 }
 
 collected_items = [images['elements'][5]] * 5  # 총 5개의 물음표로 시작
+
+
+def render_multiline_text_centered(text, font, color, center_x, center_y, line_spacing=5):
+    """
+    여러 줄의 텍스트를 화면 중앙에 정렬하여 출력하는 함수.
+    :param text: 줄바꿈이 포함된 텍스트
+    :param font: 사용할 폰트
+    :param color: 텍스트 색상
+    :param center_x: 중앙 정렬 기준 x 좌표
+    :param center_y: 중앙 정렬 기준 y 좌표
+    :param line_spacing: 줄 간격 (픽셀 단위)
+    """
+    lines = text.split("\n")
+    line_surfaces = [font.render(line, True, color) for line in lines]
+
+    # 텍스트 블록 전체 높이 계산
+    total_height = sum(surface.get_height() for surface in line_surfaces) + (line_spacing * (len(lines) - 1))
+
+    # 첫 줄 시작 y 좌표 계산
+    start_y = center_y - (total_height // 2)
+
+    for i, surface in enumerate(line_surfaces):
+        line_width = surface.get_width()
+        line_x = center_x - (line_width // 2)
+        line_y = start_y + i * (surface.get_height() + line_spacing)
+        SCREEN.blit(surface, (line_x, line_y))
+
+
+
+def show_stage_info(stage):
+    # 단계별 안내 메시지
+    stage_messages = {
+        0: " 1단계: 야채의 숲\n"
+           "이곳에 다양한 신선한 야채들이 자라고 있지만,\n"
+           "미로가 복잡하게 얽혀 있다.\n"
+           "토니는 미로를 통과해\n"
+           "숨겨진 신선한 토마토를 찾아야한다.\n"
+           "이 토마토는 황제 파스타의 필수 재료이다.\n\n\n\n"
+           "<토니가 벽에 닿으면 생명이 감소해요!>",
+        1: "2단계: 뜨거운 사막\n"
+           "이곳에는 뜨거운 모래 바람이 불기 때문에\n"
+           "도저히 바람을 맞대고 이동 할 수 없다.\n"
+           "대신 우산을 이용해 모래 바람에 대응할 수 있다.\n"
+           "이 곳에서 토니는 매콤한 고추를 찾아야 한다.\n\n\n\n"
+           "<토니는 모래 바람을 맞대고 이동 할 수 없어요!>\n"
+           "<우산 아이템을 먹으면 잔여 시간이 늘어나요!>",
+        2: "3단계: 깊은 바다\n" 
+           "토니는 바다에서 특별한 새우를 찾아야 한다.\n"
+           "이 새우는 바닷 속 깊은 곳에 자라며,\n"
+           "이동 시 해파리의 공격을 피해야한다.\n\n\n\n"
+           "<토니가 해파리와 접촉하면 생명이 감소해요!>",
+        3: "4단계: 얼음 동굴\n" 
+           "이 곳에서 토니는 파스타에 고소함을 더할\n"
+           "파스타에 고소함을 더할\n"
+           "부드러운 크림을 찾아야한다.\n"
+           "빙판 길은 매우 미끄러워서 조심해야 한다.\n\n\n\n"
+           "<토니가 움직이는 빙판길에 3번 미끄러지면\n" 
+           "처음 지점으로 추락해요!>",
+        4: "5단계: 불의 지옥\n"
+           "이곳에서는 파스타의 풍미를 더할\n"
+           "향긋한 바질을 찾아야 한다.\n"
+           "연기가 자옥하고 용암이 흐르고 있어\n"
+           "매우 위험하다.\n\n"
+           "<연기가 토니의 시야를 방해해요!>\n"
+           "<토니가 용암에 접촉하면 즉사해요!>",
+    }
+
+    info_font = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 25)
+    button_font = pygame.font.Font(r"C:\Users\sso06\OneDrive\Documents\DungGeunMo.ttf", 30)
+
+    while True:
+        SCREEN.fill(BLACK)
+
+        # 안내 메시지 출력 (가운데 정렬된 텍스트 사용)
+        if stage in stage_messages:
+            render_multiline_text_centered(
+                text=stage_messages[stage],  # 줄바꿈된 텍스트
+                font=info_font,
+                color=WHITE,
+                center_x=WIDTH // 2,
+                center_y=HEIGHT // 3
+            )
+
+        # 확인 버튼
+        button_text = button_font.render("확인", True, RED)
+        button_rect = button_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 100))
+        pygame.draw.rect(SCREEN, WHITE, button_rect.inflate(20, 10), border_radius=5)
+        SCREEN.blit(button_text, button_rect)
+
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if button_rect.collidepoint(event.pos):
+                    return  # 확인 버튼 클릭 시 종료
+
+
 
 # 보상 메시지를 그리는 함수
 def draw_reward_message(message, start_time):
@@ -96,11 +196,18 @@ def draw_reward_message(message, start_time):
         return False
 
 
+
+
 #획득 재료 업데이트
 def update_collected_items(level):
     if level in level_rewards:
         item_image = level_rewards[level]["image"]
         collected_items[level - 1] = item_image
+
+
+
+
+
 
 def show_intro_screen():
     intro_running = True
@@ -254,6 +361,7 @@ def generate_maze(width, height):
 
     return maze
 
+
 def draw_maze(maze):
     maze_offset_y = 200
 
@@ -268,14 +376,14 @@ def draw_maze(maze):
         wall_image = images['wall'][0]  # wall_image1
         grass_image = images['way'][0]  # way_image1
         destination_images = {3: images['elements'][0]}  # tomato
-    elif current_level == 1:
+    elif current_level == 2:
         wall_image = images['wall'][1]  # wall_image2
         grass_image = images['way'][1]  # way_image2
-        destination_images = {3: images['elements'][1]}  # shrimp
-    elif current_level == 2:
+        destination_images = {3: images['elements'][2]}  # shrimp
+    elif current_level == 1:
         wall_image = images['wall'][2]  # wall_image3
         wall_image = images['wall'][2]  # wall_image3
-        destination_images = {3: images['elements'][2]}  # pepper
+        destination_images = {3: images['elements'][1]}  # pepper
     elif current_level == 3:
         wall_image = images['wall'][3]  # wall_image4
         grass_image = images['way'][3]  # way_image4
@@ -314,8 +422,13 @@ def draw_maze(maze):
                 else:
                     pygame.draw.rect(SCREEN, RED, (x * BLOCK_SIZE, y * BLOCK_SIZE + maze_offset_y, BLOCK_SIZE, BLOCK_SIZE))
 
-# 2단계의 황금색 장애물 좌표 초기화
-gold_obstacles = []
+# 황금색 장애물(해파리) 이동 관련 변수
+gold_obstacle_positions = []  # 현재 해파리 위치 리스트
+gold_obstacle_directions = {}  # 각 해파리의 이동 방향
+gold_move_interval = 0.5  # 해파리 이동 간격 (초)
+gold_last_move_time = 0  # 마지막으로 해파리가 이동한 시간
+gold_last_collision_time = 0  # 마지막 해파리 충돌 시간
+gold_collision_cooldown = 2  # 2초 동안 추가 충돌 무효화
 
 # 하늘색 오브젝트 관련 변수
 cyan_objects = []
@@ -326,8 +439,12 @@ current_level = 0
 player_x, player_y = 1, 1
 
 # 빙판길 관련 변수 초기화
-ice_paths = []
-ice_cross_count = 0
+ice_paths_positions = []  # 빙판길 위치 리스트
+ice_paths_directions = {}  # 각 빙판길의 이동 방향 저장
+ice_move_interval = 0.5  # 빙판길 이동 간격 (초)
+ice_last_move_time = 0  # 마지막으로 빙판길이 이동한 시간
+ice_cross_count = 0  # 빙판길을 밟은 횟수 초기화
+last_ice_position = None  # 최근 밟은 빙판길 위치
 
 # 최근 밟은 빙판길 위치를 추적하기 위한 변수
 last_ice_position = None
@@ -335,8 +452,8 @@ last_ice_position = None
 # 빨간 오브젝트(용암) 관련 변수
 lava_objects = []
 lava_last_spawn_time = 0
-lava_spawn_interval = 3  # 용암 생성 간격 (초)
-lava_duration = 2  # 용암 지속 시간 (초)
+lava_spawn_interval = 1.5  # 용암 생성 간격 (초)
+lava_duration = 1  # 용암 지속 시간 (초)
 
 # 연기 관련 변수
 smoke_position_x = 0  # 연기의 초기 x 위치
@@ -363,8 +480,8 @@ def change_wind_direction():
 
 # 바람 방향 표시
 def draw_wind_arrow():
-    # 현재 단계가 3단계 (인덱스 2)일 때만 표시
-    if current_level == 2:
+    # 현재 단계가 2단계 (인덱스 1)일 때만 표시
+    if current_level == 1:
         arrow_text = ""
         if wind_direction == "UP":
             arrow_text = "↑"
@@ -387,7 +504,7 @@ def is_opposite_direction(player_move, wind_direction):
         (player_move == "RIGHT" and wind_direction == "LEFT")
 
 # 플레이어 생명 초기화
-lives = 3
+lives = 5
 message = ""
 message_start_time = None
 game_over = False
@@ -403,14 +520,65 @@ def darken_screen():
     dark_surface.set_alpha(200)  # 반투명 효과
     SCREEN.blit(dark_surface, (0, 0))  # 화면에 반투명 레이어 추가
 
-# 황금색 장애물 배치 함수
-def place_gold_obstacles(maze):
-    global gold_obstacles
-    gold_obstacles = []
-    while len(gold_obstacles) < 4:
-        x, y = random.randint(0, len(maze[0]) - 1), random.randint(0, len(maze) - 1)
-        if maze[y][x] == 0 and (x, y) not in gold_obstacles:
-            gold_obstacles.append((x, y))
+# 해파리 랜덤 배치 함수
+def place_moving_gold_obstacles(maze):
+    global gold_obstacle_positions, gold_obstacle_directions
+    gold_obstacle_positions = []
+
+    possible_positions = [
+        (x, y)
+        for y in range(len(maze))
+        for x in range(len(maze[0]))
+        if maze[y][x] == 0  # 길에만 배치
+    ]
+
+    # 2개 위치를 랜덤 선택
+    gold_obstacle_positions = random.sample(possible_positions, 2)
+
+    # 각 해파리에 대해 초기 방향 설정
+    gold_obstacle_directions = {
+        pos: random.choice([(0, -1), (0, 1), (-1, 0), (1, 0)])  # 상, 하, 좌, 우 중 하나
+        for pos in gold_obstacle_positions
+    }
+
+# 해파리 이동 함수
+def move_gold_obstacles(maze):
+    global gold_obstacle_positions, gold_obstacle_directions, gold_last_move_time
+
+    current_time = time.time()
+    if current_time - gold_last_move_time < gold_move_interval:
+        return  # 이동 간격에 도달하지 않았으면 반환
+
+    gold_last_move_time = current_time
+    new_positions = []
+
+    for pos in gold_obstacle_positions:
+        if pos not in gold_obstacle_directions:
+            # 누락된 경우 기본 방향 할당
+            gold_obstacle_directions[pos] = random.choice([(0, -1), (0, 1), (-1, 0), (1, 0)])
+
+        x, y = pos
+        dx, dy = gold_obstacle_directions[pos]
+        new_x, new_y = x + dx, y + dy
+
+        # 새로운 위치가 경계 안에 있고, 길(0)이면 이동
+        if (
+            0 <= new_x < len(maze[0])
+            and 0 <= new_y < len(maze)
+            and maze[new_y][new_x] == 0
+        ):
+            new_positions.append((new_x, new_y))
+            gold_obstacle_directions[(new_x, new_y)] = gold_obstacle_directions.pop(pos)  # 방향 유지
+        else:
+            # 벽이나 경계에 부딪힐 경우 새로운 방향 할당
+            gold_obstacle_directions[pos] = random.choice([(0, -1), (0, 1), (-1, 0), (1, 0)])
+            new_positions.append(pos)
+
+    gold_obstacle_positions = new_positions
+
+
+
+
 
 # 하늘색 오브젝트 배치 함수
 def place_cyan_objects(maze):
@@ -423,59 +591,107 @@ def place_cyan_objects(maze):
             cyan_objects.append((x, y))
             cyan_last_collected[(x, y)] = 0  # 초기화 시간 설정
 
+
+
 # 빙판길 배치 함수 (4단계 전용)
-def place_ice_paths(maze, start, end):
-    global ice_paths
-    ice_paths = []
-    while len(ice_paths) < 7:
-        x, y = random.randint(0, len(maze[0]) - 1), random.randint(0, len(maze) - 1)
-        # 플레이어가 이동 가능한 경로(0)인 경우에만 빙판길 배치
-        if maze[y][x] == 0 and (x, y) not in ice_paths:
-            ice_paths.append((x, y))
+def place_ice_paths(maze):
+    global ice_paths_positions, ice_paths_directions
+    ice_paths_positions = []
+
+    # 가능한 위치 찾기
+    possible_positions = [
+        (x, y)
+        for y in range(len(maze))
+        for x in range(len(maze[0]))
+        if maze[y][x] == 0  # 길(0)에만 배치
+    ]
+
+    # 빙판길 4개 고정 배치
+    num_ice_paths = 4
+    ice_paths_positions = random.sample(possible_positions, k=num_ice_paths)
+
+    # 각 빙판길에 대해 초기 방향 설정
+    ice_paths_directions = {
+        pos: random.choice([(0, -1), (0, 1), (-1, 0), (1, 0)])  # 상, 하, 좌, 우 중 하나
+        for pos in ice_paths_positions
+    }
+
+def move_ice_paths(maze):
+    global ice_paths_positions, ice_paths_directions, ice_last_move_time
+
+    current_time = time.time()
+    if current_time - ice_last_move_time < ice_move_interval:
+        return  # 이동 간격에 도달하지 않았으면 반환
+
+    ice_last_move_time = current_time
+    new_positions = []
+
+    for pos in ice_paths_positions:
+        x, y = pos
+
+        # 기존 방향이 없다면 초기화
+        if pos not in ice_paths_directions:
+            ice_paths_directions[pos] = random.choice([(0, -1), (0, 1), (-1, 0), (1, 0)])
+
+        dx, dy = ice_paths_directions[pos]
+        new_x, new_y = x + dx, y + dy
+
+        # 새로운 위치가 경계 안에 있고, 길(0)이면 이동
+        if (
+            0 <= new_x < len(maze[0])
+            and 0 <= new_y < len(maze)
+            and maze[new_y][new_x] == 0
+            and (new_x, new_y) not in ice_paths_positions  # 빙판길끼리 겹치지 않도록
+        ):
+            new_positions.append((new_x, new_y))
+            ice_paths_directions[(new_x, new_y)] = ice_paths_directions.pop(pos)  # 방향 유지
+        else:
+            # 벽이나 경계에 부딪힐 경우 새로운 방향으로 변경
+            ice_paths_directions[pos] = random.choice([(0, -1), (0, 1), (-1, 0), (1, 0)])
+            new_positions.append(pos)
+
+    # 동기화: 기존 위치 데이터 삭제
+    ice_paths_positions = new_positions
+
 
 # 빙판길 패널티 체크 함수
 def check_ice_penalty():
     global ice_cross_count, player_x, player_y, message, message_start_time, path, draw_path, moving, last_ice_position
-    # 5단계에서는 패널티를 적용하지 않음
-    if current_level == 4:  # 5단계 인덱스는 4
+
+    if current_level != 3:
         return
 
-    if (player_x, player_y) in ice_paths:
-        # 최근 밟은 빙판길 위치와 현재 위치가 다를 때만 카운트 증가
-        if last_ice_position != (player_x, player_y):
+    # 현재 위치가 빙판길인지 확인
+    if (player_x, player_y) in ice_paths_positions:
+        if last_ice_position != (player_x, player_y):  # 이전 위치와 다를 때만 카운트
             ice_cross_count += 1
-            last_ice_position = (player_x, player_y)  # 현재 위치를 기록
-            if ice_cross_count >= 3:
-                # 4단계 시작 위치로 즉시 리스폰
-                player_x, player_y = 1, 1  # 4단계 시작 위치
-                ice_cross_count = 0  # 빙판길 경유 횟수 초기화
-                last_ice_position = None  # 최근 밟은 위치 초기화
-                path = []  # 경로 초기화
-                draw_path = []  # 경로 그리기 초기화
-                moving = False  # 이동 중지
-                message = "빙판길을 3번 밟았습니다! 시작 지점으로 즉시 리스폰됩니다."
-                message_start_time = time.time()
-                return  # 즉시 함수 종료하여 이동 중단
-        # 빙판길 위에서는 자동 이동
-        else:
-            # 다음 칸으로 자동 이동
-            if path:
-                next_x, next_y = path[0]
-                # 빙판길 위에서 경로 따라 이동
-                if maze[next_y][next_x] == 0:
-                    player_x, player_y = next_x, next_y
-                    path.pop(0)
-            else:
-                moving = False
+            last_ice_position = (player_x, player_y)
+
+        # 3번 이상 밟으면 즉시 리스폰 및 카운트 초기화
+        if ice_cross_count >= 3:
+            ice_cross_count = 0  # 카운트 초기화
+            player_x, player_y = 1, 1  # 시작 지점으로 리스폰
+            path = []  # 경로 초기화
+            draw_path = []
+            moving = False
+            message = "빙판길을 3번 밟았습니다! 시작 지점으로 리스폰됩니다."
+            message_start_time = time.time()
     else:
-        # 빙판길이 아닌 위치로 이동했을 때 최근 위치 초기화
-        last_ice_position = None
+        last_ice_position = None  # 빙판길을 벗어나면 위치 기록 초기화
+
+# 빙판길 밟은 횟수 자막 표시 함수
+def draw_ice_counter():
+    if current_level == 3:  # 4단계에서만 표시
+        ice_text = FONT.render(f"빙판길에 미끄러진 횟수: {ice_cross_count}", True, WHITE)
+        ice_text_rect = ice_text.get_rect(center=(WIDTH // 2, 90))  # 바람 자막과 동일한 위치
+        SCREEN.blit(ice_text, ice_text_rect)
+
 
 # 빨간 오브젝트(용암) 생성 함수
 def spawn_lava(maze):
     global lava_objects
     lava_objects = []
-    num_lava = random.randint(3, 6)  # 랜덤한 개수의 용암 생성
+    num_lava = random.randint(7, 12)  # 랜덤한 개수의 용암 생성
     while len(lava_objects) < num_lava:
         x, y = random.randint(0, len(maze[0]) - 1), random.randint(0, len(maze) - 1)
         if maze[y][x] == 0 and (x, y) not in lava_objects:  # 이동 가능한 경로에만 생성
@@ -645,10 +861,32 @@ def ending_function():
 # 메인 실행
 if __name__ == "__main__":
     show_intro_screen()
+    show_stage_info(current_level)
     start_time = time.time()
+
+stage_info_shown = False  # 단계 안내 표시 여부를 추적하는 플래그
+level_completed = False  # 단계 완료 여부
+
 
 # 게임 루프
 while True:
+
+    # 각 단계 시작 시 안내 표시
+    if not stage_info_shown:
+        show_stage_info(current_level)  # 안내 메시지 출력
+        stage_info_shown = True  # 안내 메시지가 표시되었음을 기록
+
+        for row in maze:
+            print(" ".join(str(cell) for cell in row))  # 미로 데이터 출력
+        start_time = time.time()  # 안내 종료 후 시간 초기화
+
+    # 단계 완료 시 초기화 로직
+    if level_completed:
+        stage_info_shown = False  # 새로운 단계 시작 시 다시 안내 표시
+        reset_level()  # 단계 초기화
+        level_completed = False  # 플래그 리셋
+
+
 
     # 5단계에서 용암 생성 및 관리
     if current_level == 4:  # 5단계 인덱스는 4
@@ -667,10 +905,15 @@ while True:
             message = "용암에 닿았습니다! 게임 오버!"
 
     # 4단계에 진입하면 한 번만 빙판길 배치
-    if current_level == 3 and not ice_paths:  # 4단계에서만 적용
+    if current_level == 3 and not ice_paths_positions:  # 4단계에서만 적용
         start = (1, 1)  # 시작 위치
         end = (len(maze[0]) - 2, len(maze) - 2)  # 종료 위치
-        place_ice_paths(maze, start, end)
+        if not ice_paths_positions:  # 처음 진입 시 한 번만 배치
+            place_ice_paths(maze)
+
+    # 빙판길 이동 처리 (4단계 전용)
+    if current_level == 3:
+        move_ice_paths(maze)  # 빙판길 이동
 
     # 플레이어 이동 중 빙판길 체크
     if current_level == 3:  # 4단계에서만 빙판길 체크
@@ -678,23 +921,27 @@ while True:
 
     change_wind_direction()
 
-    # 3단계에 진입하면 한 번만 하늘색 오브젝트 배치
-    if current_level == 2 and not cyan_objects:
+    # 2단계에 진입하면 한 번만 하늘색 오브젝트 배치
+    if current_level == 1 and not cyan_objects:
         place_cyan_objects(maze)
 
     # 다른 단계에서는 하늘색 오브젝트 유지
-    if current_level != 2:
-        cyan_objects = []  # 3단계가 아니면 하늘색 오브젝트 제거
+    if current_level != 1:
+        cyan_objects = []  # 2단계가 아니면 하늘색 오브젝트 제거
 
-    # 2단계에서 황금색 장애물 배치
-    if current_level == 1 and not gold_obstacles:
-        place_gold_obstacles(maze)
-    elif current_level != 1:
+    # 3단계에서 해파리 장애물 배치
+    if current_level == 2 and not gold_obstacle_positions:
+        place_moving_gold_obstacles(maze)
+
+
+    elif current_level != 2:
         gold_obstacles = []  # 다른 단계에서는 황금색 장애물 제거
 
     # 3단계일 때만 바람 화살표 그리기
-    if current_level == 2:
+    if current_level == 1:
         draw_wind_arrow()
+
+
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -720,9 +967,24 @@ while True:
         if maze[next_y][next_x] == 0:
             player_x, player_y = next_x, next_y
 
+
             # 빙판길 위에 있는 경우 추가 이동 처리
-            if (player_x, player_y) in ice_paths:
+            if (player_x, player_y) in ice_paths_positions:
                 check_ice_penalty()  # 빙판길 위에서 다시 확인
+
+    # 이동 처리 중 빙판길 자동 이동 추가
+    if moving and path:
+        next_x, next_y = path.pop(0)
+
+        # 이동 가능한 경우
+        if maze[next_y][next_x] == 0:
+            player_x, player_y = next_x, next_y
+
+            # 해파리와 충돌 여부 확인
+            if current_level == 2:
+                check_gold_collision(player_x, player_y)
+
+
 
     # 마우스 클릭하고 드래그하는 동안 경로 기록
     if not game_over and pygame.mouse.get_pressed()[0] and not moving:
@@ -733,18 +995,6 @@ while True:
     # 이동 모드일 때, 경로 따라 한 칸씩 이동
     if moving and path:
         next_x, next_y = path.pop(0)  # 경로에서 다음 위치 가져오기
-
-        if current_level == 1 and (next_x, next_y) in gold_obstacles:
-            current_level = 0
-            lives = 3
-            gold_obstacles = []
-            message = "해파리에 닿았습니다! 1단계 리턴!"
-            player_x, player_y = 1, 1
-            message_start_time = time.time()
-            moving = False
-            path = []
-            start_time = time.time()  # 제한 시간 초기화
-            maze = generate_maze(15, 9)  # 새로운 미로 생성 (1단계 리셋)
 
         # 이동 방향 결정
         if next_x > player_x:
@@ -758,21 +1008,14 @@ while True:
         else:
             player_move = None
 
-        # 3단계에서 바람 패널티 적용 (이동하기 전에 체크)
-        if current_level == 2 and is_opposite_direction(player_move, wind_direction):
-            moving = False
-            path = []
-            message = "바람과 반대 방향으로 이동할 수 없습니다!"
-            message_start_time = time.time()
-            continue  # 이동 중단
-
-        # 4단계에 빙판길 배치
-        if current_level == 3 and not ice_paths:
-            place_ice_paths(maze)
-
-        # 플레이어 이동 중 빙판길 체크
-        if current_level == 3:
-            check_ice_penalty()
+        # 2단계에서 바람 패널티 적용 (이동하기 전에 체크)
+        if current_level == 1:  # 2단계에서만 적용
+            if player_move and is_opposite_direction(player_move, wind_direction):
+                moving = False
+                path = []  # 이동 경로 초기화
+                message = "바람과 반대 방향으로 이동할 수 없습니다!"
+                message_start_time = time.time()
+                continue  # 이동 중단
 
         # 벽에 닿으면 이동 중지
         elif maze[next_y][next_x] == 1:
@@ -780,7 +1023,7 @@ while True:
             message = f"벽에 부딪혔습니다! 남은 생명: {lives}"
             message_start_time = time.time()
             moving = False  # 이동 모드 비활성화
-            path = []  # 이동 중단
+            path = []  # 이동 경로 초기화
 
             # 생명이 0이면 게임 오버
             if lives <= 0:
@@ -788,6 +1031,31 @@ while True:
                 message = "게임 오버! 모든 생명을 잃었습니다."
         else:
             player_x, player_y = next_x, next_y  # 벽이 아닐 때만 이동
+
+        # 2단계 해파리 충돌 처리 수정
+        if current_level == 2 and (player_x, player_y) in gold_obstacle_positions:
+            lives -= 1  # 생명 감소
+            message = f"해파리에 닿았습니다! 남은 생명: {lives}"
+            message_start_time = time.time()
+
+            # 생명이 0이 되면 게임 오버
+            if lives <= 0:
+                game_over = True
+                message = "게임 오버! 모든 생명을 잃었습니다."
+
+
+
+
+
+        # 4단계에 빙판길 배치
+        if current_level == 3 and not ice_paths_positions:
+            place_ice_paths(maze)
+
+        # 플레이어 이동 중 빙판길 체크
+        if current_level == 3:
+            check_ice_penalty()
+
+
 
         if (player_x, player_y) in cyan_objects:
             current_time = time.time()
@@ -797,10 +1065,15 @@ while True:
                 message_start_time = current_time
                 cyan_last_collected[(player_x, player_y)] = current_time
 
+
+
             # 이동 가능한 경우 업데이트
         if maze[next_y][next_x] != 1 and not is_opposite_direction(player_move, wind_direction):
             player_x, player_y = next_x, next_y
             level_completed = False  # 플래그 추가
+
+
+
 
             # 도착점에 도착하면 다음 단계로 이동
             if maze[player_y][player_x] == 3:
@@ -847,8 +1120,9 @@ while True:
                         message_start_time = time.time()
                         reset_level()
 
-                        if current_level == 1:
-                            place_gold_obstacles(maze)
+
+
+
 
     # 메시지 사라짐 처리 (3초 뒤에 사라지게 설정)
     if message_start_time and time.time() - message_start_time > 3:
@@ -865,6 +1139,8 @@ while True:
     SCREEN.fill(BLACK)
     draw_collected_items()
     draw_maze(maze)
+
+
 
     #획득 재료 알림 깜빡이기
     if reward_message and reward_message_start_time:
@@ -887,6 +1163,9 @@ while True:
     if message and not game_over:
         draw_message(message, 120)
 
+    # 빙판길 밟은 횟수 자막
+    draw_ice_counter()
+
     # 용암(빨간 오브젝트) 그리기
     if current_level == 4:  # 5단계 인덱스는 4
         for (lx, ly) in lava_objects:
@@ -898,17 +1177,49 @@ while True:
 
     # 빙판길 그리기 (4단계 전용)
     if current_level == 3:
-        for (ix, iy) in ice_paths:
+        for (ix, iy) in ice_paths_positions:
             SCREEN.blit(images['obstacles'][1], (ix * BLOCK_SIZE, iy * BLOCK_SIZE + 200))
 
     # 하늘색 오브젝트 그리기
-    if current_level == 2:
+    if current_level == 1:
         for (cx, cy) in cyan_objects:
             SCREEN.blit(images['obstacles'][3], (cx * BLOCK_SIZE, cy * BLOCK_SIZE + 200))
 
-    # 황금색 장애물 그리기
-    if current_level == 1:
-        for (gx, gy) in gold_obstacles:
+    # 해파리 이동
+    if current_level == 2:
+        move_gold_obstacles(maze)
+
+
+    # 해파리 충돌 검사 및 생명 감소 처리
+    # 해파리 충돌 검사 및 생명 감소 처리
+    def check_gold_collision(player_x, player_y):
+        global lives, message, message_start_time, game_over, gold_last_collision_time
+
+        # 현재 시간이 마지막 충돌 시간 이후인지 확인
+        current_time = time.time()
+        if current_level == 2 and (player_x, player_y) in gold_obstacle_positions:
+            if current_time - gold_last_collision_time > gold_collision_cooldown:
+                gold_last_collision_time = current_time  # 마지막 충돌 시간 갱신
+                lives -= 1  # 생명 감소
+                message = f"해파리에 닿았습니다! 남은 생명: {lives}"
+                message_start_time = time.time()
+
+                # 생명이 0이 되면 게임 오버
+                if lives <= 0:
+                    game_over = True
+                    message = "게임 오버! 모든 생명을 잃었습니다."
+
+
+
+
+    # 황금색 장애물(해파리) 그리기
+    if current_level == 2:
+        draw_gold_obstacles()
+
+
+    # 해파리 그리기
+    def draw_gold_obstacles():
+        for (gx, gy) in gold_obstacle_positions:
             SCREEN.blit(images['obstacles'][0], (gx * BLOCK_SIZE, gy * BLOCK_SIZE + 200))
 
     # 경로 그리기
