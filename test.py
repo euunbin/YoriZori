@@ -149,6 +149,10 @@ def show_stage_info(stage):
 
     while True:
         SCREEN.fill(BLACK)
+        # 투명 배경 생성
+        transparent_bg = pygame.Surface(SCREEN.get_size(), pygame.SRCALPHA)  # 알파 채널 포함된 Surface
+        transparent_bg.fill((0, 0, 0, 100))  # 검은색, 투명도 70% (255의 70% = 180)
+        SCREEN.blit(transparent_bg, (0, 0))  # 투명 배경 렌더링
 
         # 안내 메시지 출력 (가운데 정렬된 텍스트 사용)
         if stage in stage_messages:
@@ -729,11 +733,13 @@ maze = generate_maze(15, 9)
 
 # 단계 초기화 함수 수정
 def reset_level():
-    global player_x, player_y, start_time, maze  # 전역 변수 maze 사용
-    player_x, player_y = 1, 1
-    start_time = time.time()
-    # 새로운 단계에 진입할 때만 미로를 생성
+    global player_x, player_y, start_time, maze, path, draw_path, moving  # 추가된 변수들 포함
+    player_x, player_y = 1, 1  # 시작 지점으로 설정
+    start_time = time.time()  # 시간 초기화
     maze = generate_maze(15, 9)  # 새로운 미로 생성
+    path = []  # 경로 초기화
+    draw_path = []  # 드래그 경로 초기화
+    moving = False  # 이동 중지
 
 # 게임 초기화 단계에서 미로 생성
 maze = generate_maze(15, 9)
@@ -1072,56 +1078,45 @@ while True:
             player_x, player_y = next_x, next_y
             level_completed = False  # 플래그 추가
 
-
-
-
-            # 도착점에 도착하면 다음 단계로 이동
+            # 도착점에 도달했을 때 처리
             if maze[player_y][player_x] == 3:
                 level_completed = True
+
+                # 보상 메시지 출력
+                if current_level + 1 in level_rewards:
+                    reward_data = level_rewards[current_level + 1]
+                    reward_message = reward_data["message"]
+                    item_image = reward_data["image"]
+
+                    # 획득 아이템 업데이트
+                    collected_items[current_level] = item_image
+
+                    # 현재 배경과 미로를 유지하면서 보상 메시지 표시
+                    reward_message_start_time = time.time()
+                    while reward_message and reward_message_start_time:
+                        SCREEN.fill(BLACK)
+                        draw_collected_items()
+                        draw_maze(maze)  # 현재 단계의 미로 유지
+                        SCREEN.blit(images['player'], (player_x * BLOCK_SIZE, player_y * BLOCK_SIZE + 200))  # 플레이어 유지
+                        draw_reward_message(reward_message, reward_message_start_time)
+                        pygame.display.update()
+                        pygame.time.Clock().tick(30)
+
+                        # 3초 동안 보상 메시지를 표시
+                        if time.time() - reward_message_start_time > 3:
+                            reward_message = None
+
+                # 다음 단계로 전환
                 current_level += 1
 
                 if current_level >= 5:
-
-                    reward_data = level_rewards[5]
-                    reward_message = reward_data["message"]
-
-                    reward_message_start_time = time.time()
-                    blink_count = 0
-
-                    message = "축하합니다! 모든 단계를 클리어했습니다!"
-                    current_level = len(maze) - 1  # 인덱스 오류 방지
-                    collected_items[4] = images['elements'][4]
-                    game_over = False
-
-                    while draw_reward_message(reward_message, reward_message_start_time):
-                        pygame.display.update()
-
-                    pygame.display.update()
+                    # 모든 단계를 완료하면 엔딩 화면 표시
                     ending_function()
-
+                    pygame.quit()
+                    sys.exit()
                 else:
-                    reward_message = None
-                    game_over = False
-
-                    if current_level in level_rewards:
-                        reward_data = level_rewards[current_level]
-                        reward_message = reward_data["message"]
-                        item_image = reward_data["image"]
-
-                        collected_items[current_level - 1] = item_image
-                        reward_message_start_time = time.time()
-                        blink_count = 0
-
-                        message = f"다음 단계로 이동합니다: {current_level + 1} 단계"
-
-                        player_x, player_y = 1, 1
-                        path = []
-                        moving = False
-                        message_start_time = time.time()
-                        reset_level()
-
-
-
+                    # 단계 전환 후 초기화
+                    reset_level()  # 다음 단계 미로 생성
 
 
     # 메시지 사라짐 처리 (3초 뒤에 사라지게 설정)
