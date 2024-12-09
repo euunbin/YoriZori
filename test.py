@@ -1119,6 +1119,7 @@ while True:
                     reset_level()  # 다음 단계 미로 생성
 
 
+
     # 메시지 사라짐 처리 (3초 뒤에 사라지게 설정)
     if message_start_time and time.time() - message_start_time > 3:
         message = ""
